@@ -1,0 +1,222 @@
+[
+  {
+    "review_id": "102873214",
+    "rating": 3.0,
+    "title": "Decent",
+    "pros": "Paycheck, benefits, coworkers (YMMV), location",
+    "cons": "Managers, schedule, technology, bureaucracy, limited internal mobility",
+    "advice_to_management": null,
+    "is_current_employee": true,
+    "job_title": "Business Manager",
+    "review_date": "2026-02-18"
+  },
+  {
+    "review_id": "102869430",
+    "rating": 2.0,
+    "title": "...",
+    "pros": "Good infrastructure, Great Place to Work",
+    "cons": "Stagnant, Less Pay, Less Growth",
+    "advice_to_management": null,
+    "is_current_employee": true,
+    "job_title": "Senior Software Engineer",
+    "review_date": "2026-02-18"
+  },
+  {
+    "review_id": "102866703",
+    "rating": 5.0,
+    "title": "Great place to work",
+    "pros": "Great place to start your career",
+    "cons": "They can be behind the times in some areas",
+    "advice_to_management": null,
+    "is_current_employee": true,
+    "job_title": null,
+    "review_date": "2026-02-18"
+  },
+  {
+    "review_id": "102866554",
+    "rating": 3.0,
+    "title": "WLB",
+    "pros": "Job security, not bad benefits",
+    "cons": "5 days in office, less compensation",
+    "advice_to_management": null,
+    "is_current_employee": true,
+    "job_title": null,
+    "review_date": "2026-02-18"
+  },
+  {
+    "review_id": "102863558",
+    "rating": 5.0,
+    "title": "Good",
+    "pros": "Amazing work place in Dublin",
+    "cons": "nothing as such great place to work in Ireland",
+    "advice_to_management": null,
+    "is_current_employee": false,
+    "job_title": "Senior QA Engineer",
+    "review_date": "2026-02-17"
+  },
+  {
+    "review_id": "102861400",
+    "rating": 5.0,
+    "title": "Very good.",
+    "pros": "Pay, coworkers, overall nothing to complain about.",
+    "cons": "None that I can think of.",
+    "advice_to_management": null,
+    "is_current_employee": true,
+    "job_title": "Client Development Professional",
+    "review_date": "2026-02-17"
+  },
+  {
+    "review_id": "102855620",
+    "rating": 3.0,
+    "title": "Na",
+    "pros": "Your CVs will look much better with JPMC in them. You will learn a lot.",
+    "cons": "5 days working from office. Toxic management.",
+    "advice_to_management": null,
+    "is_current_employee": true,
+    "job_title": "Client Service Associate",
+    "review_date": "2026-02-17"
+  },
+  {
+    "review_id": "102850375",
+    "rating": 4.0,
+    "title": "Good",
+    "pros": "Good to work in the firm",
+    "cons": "Need some improvement in firm",
+    "advice_to_management": null,
+    "is_current_employee": true,
+    "job_title": "Senior Associate",
+    "review_date": "2026-02-17"
+  },
+  {
+    "review_id": "102846215",
+    "rating": 4.0,
+    "title": "Excellent Staff Culture",
+    "pros": "Great place to work and great company culture",
+    "cons": "Work life balance could be better improved",
+    "advice_to_management": "Keep doing what you are doing",
+    "is_current_employee": false,
+    "job_title": "Recruiter",
+    "review_date": "2026-02-16"
+  },
+  {
+    "review_id": "102843707",
+    "rating": 5.0,
+    "title": "Great job",
+    "pros": "It was a great company to work for",
+    "cons": "Worked long hours with some demanding clients",
+    "advice_to_management": null,
+    "is_current_employee": false,
+    "job_title": "Analyst",
+    "review_date": "2026-02-16"
+  },
+  {
+    "review_id": "102801142",
+    "rating": 5.0,
+    "title": "Great career opportunity",
+    "pros": "The best place to start your career and learn with the brightest people",
+    "cons": "High intensity and pace of the business",
+    "advice_to_management": null,
+    "is_current_employee": false,
+    "job_title": "Vice President",
+    "review_date": "2026-02-12"
+  },
+  {
+    "review_id": "102801081",
+    "rating": 4.0,
+    "title": "Fund accountant",
+    "pros": "No OT, pay is good",
+    "cons": "Not much to develop for the future career except the title and experiences",
+    "advice_to_management": null,
+    "is_current_employee": true,
+    "job_title": "Product Analyst",
+    "review_date": "2026-02-12"
+  },
+  {
+    "review_id": "102794446",
+    "rating": 4.0,
+    "title": "Great Experience But Frequent Layoffs",
+    "pros": "JPM is a great place to work, with many opportunities and different lines of business to explore for career growth. You\u2019re surrounded by many talented people.",
+    "cons": "Recently, JPM has had layoffs and outsourced some roles to India and other parts of Asia. Additionally, advancements in AI technology are impacting certain positions.",
+    "advice_to_management": null,
+    "is_current_employee": false,
+    "job_title": null,
+    "review_date": "2026-02-11"
+  },
+  {
+    "review_id": "102789113",
+    "rating": 3.0,
+    "title": "Good company",
+    "pros": "Work life balance at the company",
+    "cons": "Slow progression in the company",
+    "advice_to_management": null,
+    "is_current_employee": true,
+    "job_title": "Senior Associate",
+    "review_date": "2026-02-11"
+  },
+  {
+    "review_id": "102783296",
+    "rating": 3.0,
+    "title": "Pros and cons",
+    "pros": "Great benefit payments\nGreat vacation packages (4 weeks)\nGreat team that priorities team building\nGood work balance",
+    "cons": "5 days in office \nExpensive cafeteria food",
+    "advice_to_management": null,
+    "is_current_employee": false,
+    "job_title": "Risk Testing and Monitoring Analyst",
+    "review_date": "2026-02-10"
+  },
+  {
+    "review_id": "102782913",
+    "rating": 4.0,
+    "title": "Good company to work with",
+    "pros": "Good work process.\nYou get good hikes.\nPersonal life balance.\nPerks and benefits are good, you get bonus over and above ctc.",
+    "cons": "Weekend releases.\nSome times workload is more hence don't get time for your personal life",
+    "advice_to_management": "Please thing from the employees perspective",
+    "is_current_employee": false,
+    "job_title": "Software Engineer",
+    "review_date": "2026-02-10"
+  },
+  {
+    "review_id": "102779084",
+    "rating": 5.0,
+    "title": "loan officer assitant",
+    "pros": "amazing team to work with so much growth",
+    "cons": "need higher base pay for assistants",
+    "advice_to_management": null,
+    "is_current_employee": true,
+    "job_title": "Loan Officer Assistant",
+    "review_date": "2026-02-10"
+  },
+  {
+    "review_id": "102777540",
+    "rating": 5.0,
+    "title": "Great pay",
+    "pros": "Great pay and easy job",
+    "cons": "No cons about this job",
+    "advice_to_management": null,
+    "is_current_employee": false,
+    "job_title": "Debit Card Fraud Prevention",
+    "review_date": "2026-02-10"
+  },
+  {
+    "review_id": "102776685",
+    "rating": 3.0,
+    "title": "Good company",
+    "pros": "Stables job and slow learning curve",
+    "cons": "Have so much internal infra for everything",
+    "advice_to_management": null,
+    "is_current_employee": true,
+    "job_title": "SDE-2",
+    "review_date": "2026-02-10"
+  },
+  {
+    "review_id": "102773615",
+    "rating": 4.0,
+    "title": "Solid experience as Executive Director",
+    "pros": "Autonomy, organizational culture, benefits, fellow employees, management",
+    "cons": "Frequent reductions-in-force, siloes across departments",
+    "advice_to_management": null,
+    "is_current_employee": false,
+    "job_title": "Executive Director",
+    "review_date": "2026-02-10"
+  }
+]

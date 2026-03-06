@@ -1,0 +1,155 @@
+[
+  {
+    "title": "Modal AI Edge Platform with NVIDIA Technology",
+    "source": "scanx.trade",
+    "url": "https://scanx.trade/stock-market-news/stocks/hcltech-unveils-visionx-2-0-multi-modal-ai-edge-platform-with-nvidia-technology/33106827",
+    "published_date": "2026-02-20",
+    "snippet": "HCL Technologies announced VisionX 2.0, an upgraded multi-modal AI edge platform developed with NVIDIA technology for mission-critical industrial environments. The platform integrates advanced computer vision, vision language models, and edge-optimized generative AI using NVIDIA's physical AI computing stack including Blueprint for video search, DeepStream, Cosmos Reason VLM, and TAO. Key features include on-premises edge AI performance through NVIDIA Jetson and RTX PRO 6000 Blackwell GPUs, multi-modal AIoT engine for analyzing video, audio, LiDAR and IoT streams, and Zero-Trust edge security architecture with Dell NativeEdge deployments.",
+    "is_ai_related": true,
+    "ai_score": 100,
+    "categories": [
+      "deployment",
+      "ai_strategy"
+    ]
+  },
+  {
+    "title": "Nations looking at overarching AI strategy, not just one component, Nvidia exec Calista Redmond says",
+    "source": "The Economic Times",
+    "url": "https://economictimes.indiatimes.com/tech/artificial-intelligence/nations-looking-at-overarching-ai-strategy-not-just-one-component-nvidia-exec-calista-redmond-says/articleshow/128446925.cms",
+    "published_date": "2026-02-17",
+    "snippet": "Calista Redmond, VP Sovereign AI at Nvidia says that nations are increasingly looking at their overarching AI story and not just one component.",
+    "is_ai_related": true,
+    "ai_score": 80,
+    "categories": [
+      "ai_strategy"
+    ]
+  },
+  {
+    "title": "\"Nations looking at overarching AI strategy, not just one component,\" says Calista Redmond, VP Sovereign AI at Nvidia",
+    "source": "The Tribune",
+    "url": "https://www.tribuneindia.com/news/world/nations-looking-at-overarching-ai-strategy-not-just-one-component-says-calista-redmond-vp-sovereign-ai-at-nvidia/",
+    "published_date": "2026-02-17",
+    "snippet": "Calista Redmond, VP Sovereign AI at Nvidia says that nations are increasingly looking at their overarching AI story and not just one component.",
+    "is_ai_related": true,
+    "ai_score": 100,
+    "categories": [
+      "ai_strategy"
+    ]
+  },
+  {
+    "title": "Survey Reveals AI Advances in Telecom: Networks and Automation in Driver\u2019s Seat as Return on Investment Climbs",
+    "source": "newsroom:NVDA",
+    "url": "https://nvidianews.nvidia.com/news",
+    "published_date": "2026-02-20",
+    "snippet": "",
+    "is_ai_related": true,
+    "ai_score": 30,
+    "categories": [
+      "ai_strategy"
+    ]
+  },
+  {
+    "title": "All About the Games: Play Over 4,500 Titles With GeForce NOW",
+    "source": "newsroom:NVDA",
+    "url": "https://nvidianews.nvidia.com/news",
+    "published_date": "2026-02-20",
+    "snippet": "",
+    "is_ai_related": false,
+    "ai_score": 0,
+    "categories": []
+  },
+  {
+    "title": "India Fuels Its AI Mission With NVIDIA",
+    "source": "newsroom:NVDA",
+    "url": "https://nvidianews.nvidia.com/news",
+    "published_date": "2026-02-20",
+    "snippet": "",
+    "is_ai_related": true,
+    "ai_score": 20,
+    "categories": [
+      "ai_strategy"
+    ]
+  },
+  {
+    "title": "India\u2019s Global Systems Integrators Build Next Wave of Enterprise Agents With NVIDIA AI, Transforming Back Office and Customer Support",
+    "source": "newsroom:NVDA",
+    "url": "https://nvidianews.nvidia.com/news",
+    "published_date": "2026-02-20",
+    "snippet": "",
+    "is_ai_related": true,
+    "ai_score": 20,
+    "categories": [
+      "ai_strategy"
+    ]
+  },
+  {
+    "title": "NVIDIA and Global Industrial Software Leaders Partner With India\u2019s Largest Manufacturers to Drive AI Boom",
+    "source": "newsroom:NVDA",
+    "url": "https://nvidianews.nvidia.com/news",
+    "published_date": "2026-02-20",
+    "snippet": "",
+    "is_ai_related": true,
+    "ai_score": 20,
+    "categories": [
+      "ai_strategy"
+    ]
+  },
+  {
+    "title": "Meta Builds AI Infrastructure With NVIDIA",
+    "source": "newsroom:NVDA",
+    "url": "https://nvidianews.nvidia.com/news",
+    "published_date": "2026-02-20",
+    "snippet": "",
+    "is_ai_related": true,
+    "ai_score": 40,
+    "categories": [
+      "ai_strategy"
+    ]
+  },
+  {
+    "title": "New Data Shows NVIDIA Blackwell Ultra Delivers up to 50x Better Performance and 35x Lower Costs for Agentic AI",
+    "source": "newsroom:NVDA",
+    "url": "https://nvidianews.nvidia.com/news",
+    "published_date": "2026-02-20",
+    "snippet": "",
+    "is_ai_related": true,
+    "ai_score": 20,
+    "categories": [
+      "ai_strategy"
+    ]
+  },
+  {
+    "title": "Code, Compute and Connection: Inside the Inaugural NVIDIA AI Day S\u00e3o Paulo",
+    "source": "newsroom:NVDA",
+    "url": "https://nvidianews.nvidia.com/news",
+    "published_date": "2026-02-20",
+    "snippet": "",
+    "is_ai_related": true,
+    "ai_score": 20,
+    "categories": [
+      "ai_strategy"
+    ]
+  },
+  {
+    "title": "Leading Inference Providers Cut AI Costs by up to 10x With Open Source Models on NVIDIA Blackwell",
+    "source": "newsroom:NVDA",
+    "url": "https://nvidianews.nvidia.com/news",
+    "published_date": "2026-02-20",
+    "snippet": "",
+    "is_ai_related": true,
+    "ai_score": 20,
+    "categories": [
+      "ai_strategy"
+    ]
+  },
+  {
+    "title": "NVIDIA DGX Spark Powers Big Projects in Higher Education",
+    "source": "newsroom:NVDA",
+    "url": "https://nvidianews.nvidia.com/news",
+    "published_date": "2026-02-20",
+    "snippet": "",
+    "is_ai_related": false,
+    "ai_score": 0,
+    "categories": []
+  }
+]
