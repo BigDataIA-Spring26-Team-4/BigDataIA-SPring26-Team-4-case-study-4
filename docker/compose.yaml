@@ -22,6 +22,8 @@ x-airflow-common: &airflow-common
       condition: service_healthy
     api:
       condition: service_started
+    cs4-rag-api:
+      condition: service_started
   networks:
     - pe-org-air-network
 
@@ -74,6 +76,45 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - pe-org-air-network
+
+  # ════════════════════════════════════════════════════════════════
+  # CS4 RAG & Search API
+  # ════════════════════════════════════════════════════════════════
+  cs4-rag-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cs4
+    container_name: pe-org-air-cs4-rag
+    ports:
+      - "8003:8003"
+    environment:
+      # CS4 connects to CS1/CS2/CS3 via the api service
+      CS4_CS3_API_URL: "http://api:8000"
+      # LLM Provider (set whichever you use)
+      CS4_PRIMARY_MODEL: ${CS4_PRIMARY_MODEL:-}
+      CS4_FALLBACK_MODEL: ${CS4_FALLBACK_MODEL:-}
+      CS4_EXTRACTION_MODEL: ${CS4_EXTRACTION_MODEL:-}
+      CS4_JUSTIFICATION_MODEL: ${CS4_JUSTIFICATION_MODEL:-}
+      CS4_CHAT_MODEL: ${CS4_CHAT_MODEL:-}
+      CS4_DAILY_BUDGET_USD: ${CS4_DAILY_BUDGET_USD:-50.0}
+      # Provider API keys
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_API_BASE: ${OLLAMA_API_BASE:-}
+      # Retrieval tuning
+      CS4_DENSE_WEIGHT: ${CS4_DENSE_WEIGHT:-0.6}
+      CS4_BM25_WEIGHT: ${CS4_BM25_WEIGHT:-0.4}
+      CS4_RRF_K: ${CS4_RRF_K:-60}
+      CS4_EMBEDDING_MODEL: ${CS4_EMBEDDING_MODEL:-all-MiniLM-L6-v2}
+      CS4_CHROMA_PERSIST_DIR: /app/chroma_data
+    volumes:
+      - chroma_data:/app/chroma_data
+      - ../results:/app/results
+    depends_on:
+      - api
     restart: unless-stopped
     networks:
       - pe-org-air-network
@@ -222,4 +263,6 @@ volumes:
   postgres_data:
     driver: local
   airflow_logs:
+    driver: local
+  chroma_data:
     driver: local
