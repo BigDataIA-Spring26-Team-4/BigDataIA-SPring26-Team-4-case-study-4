@@ -269,7 +269,10 @@ class JustificationGenerator:
                 for r in results[:5]
             ]
 
-        cited = []
+        # Pass 1: Collect evidence with keyword matches
+        keyword_matched = []
+        relevance_only = []
+
         for r in results:
             content_lower = r.content.lower()
             matched = [
@@ -277,24 +280,36 @@ class JustificationGenerator:
                 if kw.lower() in content_lower
             ]
 
-            # Include if keywords matched OR high relevance score
-            if matched or r.score > 0.7:
-                cited.append(CitedEvidence(
-                    evidence_id=r.doc_id,
-                    content=r.content[:500],
-                    source_type=r.metadata.get("source_type", "unknown"),
-                    source_url=r.metadata.get("source_url"),
-                    confidence=float(r.metadata.get("confidence", 0.5)),
-                    matched_keywords=matched,
-                    relevance_score=r.score,
-                ))
+            entry = CitedEvidence(
+                evidence_id=r.doc_id,
+                content=r.content[:500],
+                source_type=r.metadata.get("source_type", "unknown"),
+                source_url=r.metadata.get("source_url"),
+                confidence=float(r.metadata.get("confidence", 0.5)),
+                matched_keywords=matched,
+                relevance_score=r.score,
+            )
 
-        # Sort by keyword matches (primary) then relevance (secondary)
-        cited.sort(
+            if matched:
+                keyword_matched.append(entry)
+            else:
+                relevance_only.append(entry)
+
+        # Sort keyword-matched by match count, relevance-only by score
+        keyword_matched.sort(
             key=lambda x: (len(x.matched_keywords), x.relevance_score),
             reverse=True,
         )
-        return cited[:5]
+        relevance_only.sort(key=lambda x: x.relevance_score, reverse=True)
+
+        # Combine: keyword matches first, then fill remaining slots
+        # with top relevance results (ensures IC always sees evidence)
+        cited = keyword_matched[:5]
+        remaining_slots = 5 - len(cited)
+        if remaining_slots > 0:
+            cited.extend(relevance_only[:remaining_slots])
+
+        return cited
 
     # ── Gap Identification ──────────────────────────────────────
 

@@ -92,6 +92,9 @@ class HybridRetriever:
         self._doc_contents: List[str] = []
         self._doc_metadatas: List[Dict[str, Any]] = []
 
+        # HyDE enhancer (lazy init — only activated if LLM is configured)
+        self._hyde = None
+
     @property
     def vector_store(self) -> VectorStore:
         """Access the underlying vector store."""
@@ -163,10 +166,26 @@ class HybridRetriever:
         # Over-retrieve from each method (3x) then fuse
         n = k * 3
 
-        # ── Dense retrieval ──────────────────────────────────
-        dense_results = self._dense_retrieve(query, n, filter_metadata)
+        # ── HyDE query enhancement (if LLM configured) ───────
+        dense_query = query  # Default: use raw query for dense
+        hyde_used = False
+        try:
+            if self._hyde is None:
+                from src.services.retrieval.hyde import HyDEEnhancer
+                self._hyde = HyDEEnhancer(settings=self._settings)
 
-        # ── Sparse retrieval ─────────────────────────────────
+            hyde_text = await self._hyde.generate_hypothetical_document(query)
+            if hyde_text:
+                dense_query = hyde_text
+                hyde_used = True
+                logger.info("hyde_enhanced", original_len=len(query), hyde_len=len(hyde_text))
+        except Exception as e:
+            logger.debug("hyde_skipped", reason=str(e))
+
+        # ── Dense retrieval (uses HyDE text if available) ────
+        dense_results = self._dense_retrieve(dense_query, n, filter_metadata)
+
+        # ── Sparse retrieval (always uses raw query) ─────────
         sparse_results = self._sparse_retrieve(query, n, filter_metadata)
 
         # ── RRF Fusion ───────────────────────────────────────
@@ -175,6 +194,7 @@ class HybridRetriever:
         logger.info(
             "hybrid_retrieve",
             query_length=len(query),
+            hyde_used=hyde_used,
             dense_count=len(dense_results),
             sparse_count=len(sparse_results),
             fused_count=len(fused),

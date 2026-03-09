@@ -143,6 +143,27 @@ class CS2Client:
         self.base_url = base_url
         self.client = httpx.AsyncClient(timeout=60.0)
 
+    async def _resolve_company_id(self, ticker: str) -> Optional[str]:
+        """
+        Resolve ticker → Snowflake UUID company_id.
+
+        The CS3 API stores company_id as UUID in Snowflake, but CS4
+        passes tickers (NVDA, JPM, etc). This bridge resolves the
+        ticker to the actual UUID via /api/v1/companies/by-ticker/.
+        """
+        try:
+            response = await self.client.get(
+                f"{self.base_url}/api/v1/companies/by-ticker/{ticker.upper()}"
+            )
+            response.raise_for_status()
+            data = response.json()
+            uuid = data.get("company_id") or data.get("id", "")
+            logger.info("cs2_ticker_resolved", ticker=ticker, company_id=uuid[:12] + "...")
+            return uuid
+        except Exception as e:
+            logger.warning("cs2_ticker_resolve_failed", ticker=ticker, error=str(e))
+            return None
+
     async def get_evidence(
         self,
         company_id: str,
@@ -157,14 +178,20 @@ class CS2Client:
         (jobs, patents, tech stack, glassdoor, board, news) into
         a unified CS2Evidence list.
         """
+        # Resolve ticker → UUID (Snowflake uses UUID, not ticker)
+        resolved_id = await self._resolve_company_id(company_id)
+        if not resolved_id:
+            logger.warning("cs2_no_company_found", ticker=company_id)
+            return []
+
         evidence_list: List[CS2Evidence] = []
 
-        # Fetch document chunks
-        doc_evidence = await self._fetch_document_evidence(company_id)
+        # Fetch document chunks (using UUID)
+        doc_evidence = await self._fetch_document_evidence(company_id, resolved_id)
         evidence_list.extend(doc_evidence)
 
-        # Fetch signal-based evidence
-        signal_evidence = await self._fetch_signal_evidence(company_id)
+        # Fetch signal-based evidence (using UUID)
+        signal_evidence = await self._fetch_signal_evidence(company_id, resolved_id)
         evidence_list.extend(signal_evidence)
 
         # Apply filters
@@ -204,16 +231,16 @@ class CS2Client:
     # ── Internal: Document Evidence ─────────────────────────────
 
     async def _fetch_document_evidence(
-        self, company_id: str
+        self, ticker: str, snowflake_id: str
     ) -> List[CS2Evidence]:
         """Fetch SEC filing chunks as evidence items."""
         evidence = []
 
         try:
-            # Get documents for this company
+            # Get documents using Snowflake UUID (not ticker)
             response = await self.client.get(
                 f"{self.base_url}/api/v1/documents",
-                params={"company_id": company_id, "limit": 100},
+                params={"company_id": snowflake_id, "limit": 100},
             )
             response.raise_for_status()
             documents = response.json()
@@ -259,7 +286,7 @@ class CS2Client:
 
                     evidence.append(CS2Evidence(
                         evidence_id=chunk.get("id", f"{doc_id}_chunk_{chunk.get('chunk_index', 0)}"),
-                        company_id=company_id,
+                        company_id=ticker,
                         source_type=source_type,
                         signal_category=signal_cat,
                         content=content,
@@ -272,31 +299,64 @@ class CS2Client:
                     ))
 
         except (httpx.HTTPError, httpx.ConnectError) as e:
-            logger.warning("cs2_document_fetch_failed", company_id=company_id, error=str(e))
+            logger.warning("cs2_document_fetch_failed", ticker=ticker, error=str(e))
 
         return evidence
 
     async def _fetch_signal_evidence(
-        self, company_id: str
+        self, ticker: str, snowflake_id: str
     ) -> List[CS2Evidence]:
-        """Fetch external signals as evidence items."""
-        evidence = []
+        """
+        Fetch external signals as evidence items.
 
+        Uses TWO sources:
+          1. Local JSON data files (rich text: reviews, bios, articles, job titles)
+          2. Snowflake signals API (thin metadata summaries as fallback)
+
+        The local files contain the real collected data from Glassdoor,
+        Board, News, and Job APIs.  These provide the actual text content
+        that rubric keywords can match against.
+        """
+        evidence: List[CS2Evidence] = []
+
+        # ── 1. Rich evidence from local data files ───────────────
+        for loader_name, loader_fn in [
+            ("glassdoor", self._load_glassdoor_evidence),
+            ("board", self._load_board_evidence),
+            ("news", self._load_news_evidence),
+            ("jobs", self._load_jobs_evidence),
+        ]:
+            try:
+                items = loader_fn(ticker)
+                evidence.extend(items)
+                if items:
+                    logger.info("cs2_local_evidence_loaded", source=loader_name, ticker=ticker, count=len(items))
+            except Exception as e:
+                logger.warning("cs2_local_evidence_failed", source=loader_name, ticker=ticker, error=str(e))
+
+        # ── 2. Snowflake signal summaries (fallback / extra) ─────
         try:
             response = await self.client.get(
                 f"{self.base_url}/api/v1/signals",
-                params={"company_id": company_id, "limit": 200},
+                params={"company_id": snowflake_id, "limit": 200},
             )
             response.raise_for_status()
             signals = response.json()
 
+            # Only add signals that aren't already covered by local data
+            existing_sources = {e.source_type for e in evidence}
             for sig in signals:
                 source = sig.get("source", "")
+                source_type = _SOURCE_TYPE_MAP.get(source, SourceType.PRESS_RELEASE)
+
+                # Skip if we already have rich data for this source
+                if source_type in existing_sources:
+                    continue
+
                 category = sig.get("category", "")
                 raw_value = sig.get("raw_value", "")
                 metadata = sig.get("metadata", {}) or {}
 
-                # Build content from raw_value + metadata
                 content_parts = []
                 if raw_value:
                     content_parts.append(raw_value)
@@ -308,13 +368,12 @@ class CS2Client:
                 if not content or len(content.strip()) < 10:
                     continue
 
-                source_type = _SOURCE_TYPE_MAP.get(source, SourceType.PRESS_RELEASE)
                 signal_cat = _CATEGORY_MAP.get(category, SignalCategory.LEADERSHIP_SIGNALS)
                 confidence = float(sig.get("confidence") or 0.7)
 
                 evidence.append(CS2Evidence(
                     evidence_id=sig.get("id", ""),
-                    company_id=company_id,
+                    company_id=ticker,
                     source_type=source_type,
                     signal_category=signal_cat,
                     content=content,
@@ -323,7 +382,300 @@ class CS2Client:
                 ))
 
         except (httpx.HTTPError, httpx.ConnectError) as e:
-            logger.warning("cs2_signal_fetch_failed", company_id=company_id, error=str(e))
+            logger.warning("cs2_signal_fetch_failed", ticker=ticker, error=str(e))
+
+        logger.info(
+            "cs2_signal_evidence_built",
+            ticker=ticker,
+            total=len(evidence),
+        )
+        return evidence
+
+    # ── Rich Evidence Loaders (local JSON data files) ────────────
+
+    @staticmethod
+    def _load_glassdoor_evidence(ticker: str) -> List[CS2Evidence]:
+        """
+        Load Glassdoor reviews from data/glassdoor/{ticker}.json.
+
+        Each review becomes an evidence item with real pros/cons text.
+        Maps to: culture_signals → Culture dimension.
+        """
+        import json
+        from pathlib import Path
+
+        path = Path(f"data/glassdoor/{ticker}.json")
+        if not path.exists():
+            return []
+
+        try:
+            reviews = json.loads(path.read_text())
+        except Exception:
+            return []
+
+        evidence = []
+        for i, rev in enumerate(reviews[:15]):  # Top 15 reviews
+            pros = rev.get("pros", "")
+            cons = rev.get("cons", "")
+            title = rev.get("title", "")
+            job_title = rev.get("job_title", "")
+            rating = rev.get("rating", "")
+            advice = rev.get("advice_to_management", "") or ""
+
+            content = (
+                f"Glassdoor Review ({rating}/5) by {job_title}: {title}. "
+                f"Pros: {pros} "
+                f"Cons: {cons} "
+                f"{('Advice: ' + advice) if advice else ''}"
+            ).strip()
+
+            if len(content) < 30:
+                continue
+
+            evidence.append(CS2Evidence(
+                evidence_id=f"glassdoor_{ticker}_{rev.get('review_id', i)}",
+                company_id=ticker,
+                source_type=SourceType.GLASSDOOR_REVIEW,
+                signal_category=SignalCategory.CULTURE_SIGNALS,
+                content=content,
+                extracted_at=datetime.now(),
+                confidence=0.75,
+            ))
+
+        return evidence
+
+    @staticmethod
+    def _load_board_evidence(ticker: str) -> List[CS2Evidence]:
+        """
+        Load board composition from data/board/{ticker}.json.
+
+        Board members with bios become evidence items.
+        Maps to: governance_signals → AI Governance dimension.
+        """
+        import json
+        from pathlib import Path
+
+        path = Path(f"data/board/{ticker}.json")
+        if not path.exists():
+            return []
+
+        try:
+            data = json.loads(path.read_text())
+        except Exception:
+            return []
+
+        evidence = []
+        members = data.get("members", [])
+        committees = data.get("committees", [])
+
+        # Each board member as evidence
+        for i, member in enumerate(members):
+            name = member.get("name", "")
+            title = member.get("title", "")
+            bio = member.get("bio", "")
+            comms = ", ".join(member.get("committees", []))
+            independent = "Independent" if member.get("is_independent") else "Executive"
+
+            content = (
+                f"Board Member: {name}, {title} ({independent}). "
+                f"{bio} "
+                f"{'Committees: ' + comms if comms else ''}"
+            ).strip()
+
+            if len(content) < 30:
+                continue
+
+            evidence.append(CS2Evidence(
+                evidence_id=f"board_{ticker}_{i}",
+                company_id=ticker,
+                source_type=SourceType.BOARD_PROXY_DEF14A,
+                signal_category=SignalCategory.GOVERNANCE_SIGNALS,
+                content=content,
+                extracted_at=datetime.now(),
+                confidence=0.90,
+            ))
+
+        # Committees as a single evidence item
+        if committees:
+            # Handle both list-of-strings and list-of-dicts formats
+            if isinstance(committees[0], str):
+                comm_text = "Board Committees: " + ", ".join(committees)
+            else:
+                comm_text = "Board Committees: " + "; ".join(
+                    f"{c.get('name', '')} ({', '.join(c.get('members', []))})" for c in committees
+                )
+            evidence.append(CS2Evidence(
+                evidence_id=f"board_committees_{ticker}",
+                company_id=ticker,
+                source_type=SourceType.BOARD_PROXY_DEF14A,
+                signal_category=SignalCategory.GOVERNANCE_SIGNALS,
+                content=comm_text,
+                extracted_at=datetime.now(),
+                confidence=0.90,
+            ))
+
+        # Executives as evidence (if present)
+        executives = data.get("executives", [])
+        if executives:
+            exec_text = "Executive Leadership: " + ", ".join(
+                f"{e.get('name', '')} ({e.get('title', '')})" for e in executives
+            )
+            evidence.append(CS2Evidence(
+                evidence_id=f"board_executives_{ticker}",
+                company_id=ticker,
+                source_type=SourceType.BOARD_PROXY_DEF14A,
+                signal_category=SignalCategory.LEADERSHIP_SIGNALS,
+                content=exec_text,
+                extracted_at=datetime.now(),
+                confidence=0.90,
+            ))
+
+        # AI strategy as evidence (check both 'strategy' dict and 'strategy_text' string)
+        strategy_text = data.get("strategy_text", "")
+        strategy_dict = data.get("strategy", {})
+
+        if strategy_text:
+            evidence.append(CS2Evidence(
+                evidence_id=f"board_strategy_{ticker}",
+                company_id=ticker,
+                source_type=SourceType.BOARD_PROXY_DEF14A,
+                signal_category=SignalCategory.LEADERSHIP_SIGNALS,
+                content=f"AI Strategy: {strategy_text}",
+                extracted_at=datetime.now(),
+                confidence=0.85,
+            ))
+        elif strategy_dict:
+            strat_parts = []
+            for key, val in strategy_dict.items():
+                if isinstance(val, str) and val:
+                    strat_parts.append(f"{key.replace('_', ' ').title()}: {val}")
+                elif isinstance(val, list) and val:
+                    strat_parts.append(f"{key.replace('_', ' ').title()}: {', '.join(str(v) for v in val)}")
+            if strat_parts:
+                evidence.append(CS2Evidence(
+                    evidence_id=f"board_strategy_{ticker}",
+                    company_id=ticker,
+                    source_type=SourceType.BOARD_PROXY_DEF14A,
+                    signal_category=SignalCategory.LEADERSHIP_SIGNALS,
+                    content="AI Strategy: " + ". ".join(strat_parts),
+                    extracted_at=datetime.now(),
+                    confidence=0.85,
+                ))
+
+        return evidence
+
+    @staticmethod
+    def _load_news_evidence(ticker: str) -> List[CS2Evidence]:
+        """
+        Load news articles from data/news/{ticker}.json.
+
+        AI-relevant articles become evidence items.
+        Maps to: leadership_signals → Leadership dimension.
+        """
+        import json
+        from pathlib import Path
+
+        path = Path(f"data/news/{ticker}.json")
+        if not path.exists():
+            return []
+
+        try:
+            articles = json.loads(path.read_text())
+        except Exception:
+            return []
+
+        evidence = []
+        for i, article in enumerate(articles[:20]):
+            title = article.get("title", "")
+            snippet = article.get("snippet", article.get("description", ""))
+            source = article.get("source", "")
+            ai_related = article.get("is_ai_related", False)
+            categories = article.get("categories", [])
+
+            content = (
+                f"{'[AI] ' if ai_related else ''}News ({source}): {title}. "
+                f"{snippet} "
+                f"{'Categories: ' + ', '.join(categories) if categories else ''}"
+            ).strip()
+
+            if len(content) < 30:
+                continue
+
+            evidence.append(CS2Evidence(
+                evidence_id=f"news_{ticker}_{i}",
+                company_id=ticker,
+                source_type=SourceType.NEWS_ARTICLE,
+                signal_category=SignalCategory.LEADERSHIP_SIGNALS,
+                content=content,
+                extracted_at=datetime.now(),
+                confidence=0.80 if ai_related else 0.60,
+            ))
+
+        return evidence
+
+    @staticmethod
+    def _load_jobs_evidence(ticker: str) -> List[CS2Evidence]:
+        """
+        Load job postings from results/{ticker}_jobs.json.
+
+        AI job titles become evidence items.
+        Maps to: technology_hiring → Talent dimension.
+        """
+        import json
+        from pathlib import Path
+
+        path = Path(f"results/{ticker.lower()}_jobs.json")
+        if not path.exists():
+            return []
+
+        try:
+            jobs = json.loads(path.read_text())
+        except Exception:
+            return []
+
+        # Build a single evidence item from all AI jobs
+        ai_jobs = [j for j in jobs if j.get("is_ai")]
+        all_titles = [j.get("title", "") for j in jobs if j.get("title")]
+        ai_titles = [j.get("title", "") for j in ai_jobs if j.get("title")]
+
+        evidence = []
+
+        if ai_titles:
+            # Combined AI hiring evidence
+            content = (
+                f"{ticker} AI Hiring: {len(ai_jobs)}/{len(jobs)} job postings are AI-related. "
+                f"AI roles include: {', '.join(ai_titles[:10])}. "
+                f"Skills sought: {', '.join(set(s for j in ai_jobs for s in j.get('skills', []) if s))}."
+            )
+
+            evidence.append(CS2Evidence(
+                evidence_id=f"jobs_ai_{ticker}",
+                company_id=ticker,
+                source_type=SourceType.JOB_POSTING_INDEED,
+                signal_category=SignalCategory.TECHNOLOGY_HIRING,
+                content=content,
+                extracted_at=datetime.now(),
+                confidence=0.80,
+            ))
+
+        # Also add individual notable AI job postings (top 5)
+        for i, job in enumerate(ai_jobs[:5]):
+            title = job.get("title", "")
+            skills = ", ".join(job.get("skills", []))
+            content = (
+                f"AI Job Posting at {ticker}: {title}. "
+                f"{'Skills: ' + skills if skills else ''}"
+            ).strip()
+
+            evidence.append(CS2Evidence(
+                evidence_id=f"job_{ticker}_{i}",
+                company_id=ticker,
+                source_type=SourceType.JOB_POSTING_INDEED,
+                signal_category=SignalCategory.TECHNOLOGY_HIRING,
+                content=content,
+                extracted_at=datetime.now(),
+                confidence=0.80,
+            ))
 
         return evidence
 
