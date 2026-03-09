@@ -560,7 +560,7 @@ poetry run pytest tests/test_scoring_engine.py -k "property" -v
 |--------|--------------|
 | **Deep Prajapati** | CS1 API design, CS2 evidence collection (SEC, jobs, patents, tech), CS3 scoring engine (all 11 components), Glassdoor/Board/News collectors, CS4 RAG pipeline (hybrid retrieval, HyDE, justification generator, IC prep workflow, analyst notes), Streamlit dashboard (14 pages), Docker Compose setup, Airflow DAGs (3 DAGs), full integration testing |
 | **Tapan Patel** | Airflow DAG design reference, initial Docker setup |
-| **Naman Patel** | _[Add contributions]_ |
+| **Seamus McAvoy** | CS1 API foundation, initial Snowflake schema design, CS2 evidence pipeline contributions |
 
 ### AI Tools Used
 
