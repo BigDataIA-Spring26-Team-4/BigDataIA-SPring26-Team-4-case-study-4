@@ -119,12 +119,23 @@ class HybridRetriever:
         # Dense indexing via ChromaDB
         self._vector_store.index_documents(documents)
 
-        # Sparse indexing — append to in-memory corpus
+        # Sparse indexing — upsert by doc_id to prevent duplicates
+        existing_ids = set(self._doc_ids)
         for doc in documents:
-            self._corpus.append(doc["content"].lower())
-            self._doc_ids.append(doc["doc_id"])
-            self._doc_contents.append(doc["content"])
-            self._doc_metadatas.append(doc.get("metadata", {}))
+            doc_id = doc["doc_id"]
+            if doc_id in existing_ids:
+                # Update existing entry
+                idx = self._doc_ids.index(doc_id)
+                self._corpus[idx] = doc["content"].lower()
+                self._doc_contents[idx] = doc["content"]
+                self._doc_metadatas[idx] = doc.get("metadata", {})
+            else:
+                # New entry
+                self._corpus.append(doc["content"].lower())
+                self._doc_ids.append(doc_id)
+                self._doc_contents.append(doc["content"])
+                self._doc_metadatas.append(doc.get("metadata", {}))
+                existing_ids.add(doc_id)
 
         # Rebuild BM25 index from full corpus
         self._rebuild_bm25()
