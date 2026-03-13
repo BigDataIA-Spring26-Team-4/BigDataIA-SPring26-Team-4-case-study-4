@@ -11,6 +11,50 @@
     "review_date": "2026-03-11"
   },
   {
+    "review_id": "103133176",
+    "rating": 3.0,
+    "title": "Product Control Warsaw",
+    "pros": "Well established and recognised brand",
+    "cons": "No opportunities for personal development and better pay, full time office",
+    "advice_to_management": null,
+    "is_current_employee": false,
+    "job_title": "Product Control Associate",
+    "review_date": "2026-03-11"
+  },
+  {
+    "review_id": "103131406",
+    "rating": 1.0,
+    "title": "Bad employer",
+    "pros": "Very rigid and no flexobiltiy",
+    "cons": "No flexobiltiy for work from home",
+    "advice_to_management": null,
+    "is_current_employee": true,
+    "job_title": "Vice President",
+    "review_date": "2026-03-11"
+  },
+  {
+    "review_id": "103131217",
+    "rating": 4.0,
+    "title": "Good environment",
+    "pros": "good manager and workplace environment",
+    "cons": "steep learning curve, non transferrable skills",
+    "advice_to_management": null,
+    "is_current_employee": false,
+    "job_title": "Software Engineer",
+    "review_date": "2026-03-11"
+  },
+  {
+    "review_id": "103130728",
+    "rating": 2.0,
+    "title": "Not Worth it",
+    "pros": "Benefits, flexible vacation and personal time",
+    "cons": "High workload\nLittle room for advancement \nMicromanagement",
+    "advice_to_management": null,
+    "is_current_employee": true,
+    "job_title": "Account Specialist",
+    "review_date": "2026-03-11"
+  },
+  {
     "review_id": "103123108",
     "rating": 3.0,
     "title": "Salary",
@@ -107,6 +151,17 @@
     "advice_to_management": null,
     "is_current_employee": false,
     "job_title": "Fraud Specialist II",
+    "review_date": "2026-03-03"
+  },
+  {
+    "review_id": "103034876",
+    "rating": 3.0,
+    "title": "Overall",
+    "pros": "- Leaders were supportive\n- Nice employees\n- Good management",
+    "cons": "- Fast Phase\n- Job stress level is high\n- Lots of online trainings.",
+    "advice_to_management": null,
+    "is_current_employee": false,
+    "job_title": "Major Incident Management",
     "review_date": "2026-03-03"
   },
   {
@@ -440,17 +495,6 @@
     "review_date": "2026-02-12"
   },
   {
-    "review_id": "102801142",
-    "rating": 5.0,
-    "title": "Great career opportunity",
-    "pros": "The best place to start your career and learn with the brightest people",
-    "cons": "High intensity and pace of the business",
-    "advice_to_management": null,
-    "is_current_employee": false,
-    "job_title": "Vice President",
-    "review_date": "2026-02-12"
-  },
-  {
     "review_id": "102801081",
     "rating": 4.0,
     "title": "Fund accountant",
@@ -503,50 +547,6 @@
     "advice_to_management": "Please thing from the employees perspective",
     "is_current_employee": false,
     "job_title": "Software Engineer",
-    "review_date": "2026-02-10"
-  },
-  {
-    "review_id": "102779084",
-    "rating": 5.0,
-    "title": "loan officer assitant",
-    "pros": "amazing team to work with so much growth",
-    "cons": "need higher base pay for assistants",
-    "advice_to_management": null,
-    "is_current_employee": true,
-    "job_title": "Loan Officer Assistant",
-    "review_date": "2026-02-10"
-  },
-  {
-    "review_id": "102777540",
-    "rating": 5.0,
-    "title": "Great pay",
-    "pros": "Great pay and easy job",
-    "cons": "No cons about this job",
-    "advice_to_management": null,
-    "is_current_employee": false,
-    "job_title": "Debit Card Fraud Prevention",
-    "review_date": "2026-02-10"
-  },
-  {
-    "review_id": "102776685",
-    "rating": 3.0,
-    "title": "Good company",
-    "pros": "Stables job and slow learning curve",
-    "cons": "Have so much internal infra for everything",
-    "advice_to_management": null,
-    "is_current_employee": true,
-    "job_title": "SDE-2",
-    "review_date": "2026-02-10"
-  },
-  {
-    "review_id": "102773615",
-    "rating": 4.0,
-    "title": "Solid experience as Executive Director",
-    "pros": "Autonomy, organizational culture, benefits, fellow employees, management",
-    "cons": "Frequent reductions-in-force, siloes across departments",
-    "advice_to_management": null,
-    "is_current_employee": false,
-    "job_title": "Executive Director",
     "review_date": "2026-02-10"
   }
 ]

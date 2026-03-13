@@ -35,6 +35,9 @@ COPY cs4_api.py /app/cs4_api.py
 # Copy results for local fallback scoring data
 COPY results/ /app/results/
 
+# Copy evidence data files (Glassdoor, Board, News, Jobs cache)
+COPY data/ /app/data/
+
 # Create directories for runtime data
 RUN mkdir -p /app/chroma_data
 

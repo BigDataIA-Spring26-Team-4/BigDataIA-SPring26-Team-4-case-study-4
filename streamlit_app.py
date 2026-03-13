@@ -197,7 +197,7 @@ CS4_API_BASE = os.environ.get("CS4_API_BASE", "http://localhost:8003")
 def cs4_api_available() -> bool:
     """Check if CS4 RAG API is reachable."""
     try:
-        r = requests.get(f"{CS4_API_BASE}/health", timeout=3)
+        r = requests.get(f"{CS4_API_BASE}/health", timeout=10)
         return r.status_code == 200
     except Exception:
         return False

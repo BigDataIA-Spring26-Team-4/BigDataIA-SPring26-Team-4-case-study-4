@@ -1,5 +1,17 @@
 [
   {
+    "title": "GE Aerospace And Palantir Technologies Expand Partnership To Transform Military Aircraft Readiness With AI",
+    "source": "MarketScreener",
+    "url": "https://www.marketscreener.com/news/ge-aerospace-and-palantir-technologies-expand-partnership-to-transform-military-aircraft-readiness-w-ce7e5fddd08ff125",
+    "published_date": "2026-03-12",
+    "snippet": "GE Aerospace and Palantir Technologies Inc. announced a multi-year partnership expansion to accelerate the transformation of military aviation readiness for the U.S. Air Force and operations across GE...",
+    "is_ai_related": true,
+    "ai_score": 20,
+    "categories": [
+      "ai_strategy"
+    ]
+  },
+  {
     "title": "What's Going On With GE Aerospace Stock Thursday?",
     "source": "Benzinga",
     "url": "https://www.benzinga.com/markets/large-cap/26/03/51210037/ge-aerospace-palantir-double-down-on-ai-to-keep-us-warplanes-mission-ready",
@@ -33,19 +45,6 @@
     "is_ai_related": true,
     "ai_score": 40,
     "categories": [
-      "ai_strategy"
-    ]
-  },
-  {
-    "title": "GE Aerospace turns to robots and \u2018Lean\u2019 methods to tackle jet engine repair crunch",
-    "source": "The Indian Express",
-    "url": "https://indianexpress.com/shorts/technology/ge-aerospace-turns-to-robots-and-lean-methods-to-tackle-jet-engine-repair-crunch-10530067/",
-    "published_date": "2026-02-13",
-    "snippet": "GE is investing $300 million in upgrading their repair hub in Singapore to address the bottleneck in the aviation industry caused by overloaded repair shops and scarce parts. They are implementing automation and AI to increase efficiency, reduce costs, and improve turnaround time. However, the industry\u2019s supply squeeze is expected to continue, and it will [\u2026]",
-    "is_ai_related": true,
-    "ai_score": 30,
-    "categories": [
-      "deployment",
       "ai_strategy"
     ]
   },
