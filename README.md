@@ -30,7 +30,7 @@ The PE Org-AI-R platform enables private equity firms to systematically assess t
 | **CS1** | API & Database Design | FastAPI REST API, Snowflake schema, Redis caching, Pydantic models |
 | **CS2** | Evidence Collection | SEC EDGAR filings, job postings, patents, tech stack signals |
 | **CS3** | AI Scoring Engine | Evidence mapper, rubric scorer, VR/HR/Synergy calculations, 5-company portfolio |
-| **CS4** | RAG & Search | Hybrid retrieval (Dense+BM25+RRF), score justifications, IC meeting prep, analyst notes |
+| **CS4** | RAG & Search | Hybrid retrieval (Dense+BM25+RRF), LLM-powered score justifications, IC meeting prep, analyst notes |
 
 **Course**: DAMG 7245 — Big Data and Intelligent Analytics (Spring 2026)
 
@@ -46,128 +46,245 @@ The PE Org-AI-R platform enables private equity firms to systematically assess t
 | **LLM Routing** | LiteLLM (100+ providers, automatic fallbacks, cost tracking) |
 | **Cache** | Redis 7 (Alpine) |
 | **Frontend** | Streamlit 1.54, Plotly |
-| **Orchestration** | Apache Airflow 2.8 |
+| **Orchestration** | Apache Airflow 2.8 (with pool-based concurrency control) |
 | **Containerization** | Docker Compose (8 services) |
 | **Testing** | Pytest, Hypothesis (property-based) |
 | **External APIs** | SEC EDGAR, Wextractor (Glassdoor), sec-api.io (Board), USPTO PatentsView, GNews, python-jobspy |
 
 ---
 
-## Architecture Diagram
+## Architecture
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        Docker Compose Stack                            │
-│                                                                        │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────────────────┐      │
-│  │  Streamlit    │──▶│  FastAPI      │──▶│  Snowflake           │      │
-│  │  (Port 8501)  │   │  (Port 8000)  │   │  (Cloud DW)          │      │
-│  └──────┬───────┘   └──────┬───────┘   └──────────────────────┘      │
-│         │                  │                                           │
-│         │           ┌──────┴───────┐                                  │
-│         │           │  Redis Cache  │                                  │
-│         │           │  (Port 6379)  │                                  │
-│         │           └──────────────┘                                  │
-│         │                                                              │
-│         │  ┌──────────────────────────────────────────────────────┐   │
-│         └─▶│  CS4 RAG API (Port 8003)                             │   │
-│            │  ┌────────────┐  ┌──────────┐  ┌─────────────────┐  │   │
-│            │  │  ChromaDB   │  │  BM25    │  │  LiteLLM Router │  │   │
-│            │  │  (Dense)    │  │  (Sparse) │  │  (Multi-Model)  │  │   │
-│            │  └────────────┘  └──────────┘  └─────────────────┘  │   │
-│            │  ┌────────────────────────────────────────────────┐  │   │
-│            │  │  RRF Fusion + HyDE Enhancement                 │  │   │
-│            │  └────────────────────────────────────────────────┘  │   │
-│            └──────────────────────────────────────────────────────┘   │
-│                                                                        │
-│  ┌──────────────────────────────────────────────────────────────────┐ │
-│  │                    Apache Airflow                                 │ │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌────────────────────┐      │ │
-│  │  │  Webserver   │  │  Scheduler  │  │  PostgreSQL (meta) │      │ │
-│  │  │ (Port 8080)  │  │             │  │  (Port 5432)       │      │ │
-│  │  └─────────────┘  └─────────────┘  └────────────────────┘      │ │
-│  └──────────────────────────────────────────────────────────────────┘ │
-└────────────────────────────────────────────────────────────────────────┘
+### Docker Compose Stack
 
-                    ┌─── External Data Sources ───┐
-                    │  SEC EDGAR  │  Wextractor    │
-                    │  sec-api.io │  USPTO Patents │
-                    │  GNews API  │  python-jobspy │
-                    └─────────────────────────────┘
-```
+```mermaid
+graph TB
+    subgraph Docker["Docker Compose Stack (8 Services)"]
+        subgraph Frontend
+            ST["🖥️ Streamlit<br/>Port 8501"]
+        end
 
-### CS4 RAG Pipeline Flow
+        subgraph APIs["API Layer"]
+            API["⚡ FastAPI CS1-CS3<br/>Port 8000"]
+            CS4["🧠 CS4 RAG API<br/>Port 8003"]
+        end
 
-```
-                    "Why did NVDA score 94 on Data Infrastructure?"
-                                    │
-                    ┌───────────────┴───────────────┐
-                    ▼                               ▼
-             ┌─────────────┐                 ┌─────────────┐
-             │  CS3 Client  │                 │  CS3 Client  │
-             │  Get Score   │                 │  Get Rubric  │
-             │  (93.7/100)  │                 │  (Level 5)   │
-             └──────┬──────┘                 └──────┬──────┘
-                    │                               │
-                    │         ┌──────────────────────┘
-                    ▼         ▼
-             ┌──────────────────┐
-             │  Build Query from │
-             │  Rubric Keywords  │
-             │  "snowflake       │
-             │   databricks      │
-             │   real-time"      │
-             └────────┬─────────┘
-                      ▼
-        ┌─────────────┴─────────────┐
-        ▼                           ▼
-  ┌───────────┐              ┌───────────┐
-  │  Dense     │              │  Sparse   │
-  │  ChromaDB  │              │  BM25     │
-  │  (Semantic) │              │  (Keyword) │
-  └─────┬─────┘              └─────┬─────┘
-        │                          │
-        └──────────┬───────────────┘
-                   ▼
-           ┌──────────────┐
-           │  RRF Fusion   │
-           │  score(d) =   │
-           │  Σ w/(k+rank) │
-           └──────┬───────┘
-                  ▼
-         ┌────────────────┐
-         │  Match Evidence │
-         │  to Rubric KWs  │──▶ CitedEvidence[]
-         │  + Identify Gaps │──▶ gaps_identified[]
-         └────────┬───────┘
-                  ▼
-          ┌───────────────┐
-          │  LLM Summary   │
-          │  (or Template)  │──▶ ScoreJustification
-          └───────────────┘
+        subgraph Storage
+            SF[("❄️ Snowflake<br/>Cloud DW")]
+            RD[("🔴 Redis<br/>Port 6379")]
+            CR[("🟣 ChromaDB<br/>Vector Store")]
+        end
+
+        subgraph Airflow["Apache Airflow"]
+            AW["🌐 Webserver<br/>Port 8080"]
+            AS["⏰ Scheduler"]
+            PG[("🐘 PostgreSQL<br/>Port 5432")]
+        end
+
+        subgraph LLM["LLM Providers"]
+            GPT["OpenAI<br/>gpt-4o / gpt-4o-mini"]
+            FB["Fallback<br/>gpt-3.5-turbo"]
+        end
+    end
+
+    ST --> API
+    ST --> CS4
+    API --> SF
+    API --> RD
+    CS4 --> API
+    CS4 --> CR
+    CS4 --> GPT
+    CS4 -.-> FB
+    AW --> PG
+    AS --> PG
+    AS --> API
+    AS --> CS4
+
+    EXT["📡 External APIs<br/>SEC EDGAR · Wextractor · sec-api.io<br/>USPTO · GNews · python-jobspy"] --> API
+
+    style Docker fill:#1a1a2e,stroke:#16213e,color:#fff
+    style Frontend fill:#0f3460,stroke:#533483,color:#fff
+    style APIs fill:#16213e,stroke:#0f3460,color:#fff
+    style Storage fill:#1a1a2e,stroke:#533483,color:#fff
+    style Airflow fill:#1a1a2e,stroke:#e94560,color:#fff
+    style LLM fill:#0f3460,stroke:#533483,color:#fff
 ```
 
-### Complete Data Pipeline (CS1→CS2→CS3→CS4)
+### Complete Data Pipeline (CS1 → CS2 → CS3 → CS4)
 
+```mermaid
+graph LR
+    subgraph Sources["📡 Evidence Sources"]
+        SEC["SEC EDGAR<br/>10-K, 10-Q, 8-K"]
+        JOBS["Job Boards<br/>Indeed"]
+        PAT["USPTO<br/>Patents"]
+        GD["Glassdoor<br/>Reviews"]
+        BD["Board Data<br/>sec-api.io"]
+        TECH["Tech Stack<br/>Analysis"]
+        NEWS["GNews<br/>Press Releases"]
+    end
+
+    subgraph CS2["CS2: Evidence Mapper"]
+        EM["9 Sources →<br/>6 Signal Categories"]
+    end
+
+    subgraph CS3["CS3: Scoring Engine"]
+        DIM["7 Dimensions"]
+        VR["VR Calculator"]
+        HR["HR Calculator"]
+        SYN["Synergy"]
+        SCORE["Org-AI-R<br/>Score"]
+    end
+
+    subgraph CS4["CS4: RAG & Search"]
+        IDX["ChromaDB +<br/>BM25 Index"]
+        HYB["Hybrid<br/>Retrieval + RRF"]
+        JUST["Score<br/>Justification"]
+        IC["IC Meeting<br/>Package"]
+    end
+
+    SEC --> EM
+    JOBS --> EM
+    PAT --> EM
+    GD --> EM
+    BD --> EM
+    TECH --> EM
+    NEWS --> EM
+
+    EM --> DIM
+    DIM --> VR
+    DIM --> HR
+    VR --> SYN
+    HR --> SYN
+    SYN --> SCORE
+
+    EM --> IDX
+    SCORE --> JUST
+    IDX --> HYB
+    HYB --> JUST
+    JUST --> IC
+
+    style Sources fill:#1e3a5f,stroke:#4a90d9,color:#fff
+    style CS2 fill:#2d5a27,stroke:#4a9940,color:#fff
+    style CS3 fill:#5a3d27,stroke:#d9904a,color:#fff
+    style CS4 fill:#4a2760,stroke:#9940d9,color:#fff
 ```
-SEC EDGAR ──┐                               ┌─── Data Infrastructure (0.25)
-Job Boards ─┤                               ├─── AI Governance (0.20)
-Patents ────┤   Evidence    9 Sources        ├─── Technology Stack (0.15)
-Glassdoor ──┤ ──────────▶ ──────────▶ VR ──▶├─── Talent & Skills (0.15)
-Board Data ─┤   Mapper      7 Dims         ├─── Leadership (0.10)
-Tech Stack ─┤                               ├─── Use Case Portfolio (0.10)
-News/PR ────┘                               └─── Culture & Change (0.05)
-                                                        │
-                                        VR ─────────────┤
-                                        HR ─────────────┤──▶ Org-AI-R Score
-                                        Synergy ────────┘         │
-                                                                  ▼
-                                                    ┌─────────────────────┐
-                                              CS4:  │  Hybrid Search      │
-                                                    │  Score Justification│
-                                                    │  IC Meeting Package │
-                                                    │  Analyst Notes      │
-                                                    └─────────────────────┘
+
+### CS4 RAG Justification Pipeline
+
+```mermaid
+graph TD
+    Q["❓ Why did NVDA score 94<br/>on Data Infrastructure?"]
+
+    Q --> S1["1️⃣ Fetch Score from CS3<br/>93.7/100 = Level 5 Excellent"]
+    Q --> S2["2️⃣ Fetch Rubric from CS3<br/>Keywords: snowflake, real-time,<br/>data quality, streaming"]
+
+    S1 --> S3["3️⃣ Build Search Query<br/>from Rubric Keywords"]
+    S2 --> S3
+
+    S3 --> HYDE{"HyDE<br/>Enabled?"}
+    HYDE -->|"Yes (LLM)"| HY["Generate Hypothetical<br/>Evidence Passage"]
+    HYDE -->|"No"| RAW["Use Raw Query"]
+
+    HY --> DENSE["🔵 Dense Retrieval<br/>ChromaDB Cosine<br/>Similarity"]
+    RAW --> DENSE
+    S3 --> SPARSE["🟠 Sparse Retrieval<br/>BM25 Keyword<br/>Matching"]
+
+    DENSE --> RRF["⚡ RRF Fusion<br/>score = Σ w/(k + rank)<br/>Dense=0.6 · Sparse=0.4 · k=60"]
+    SPARSE --> RRF
+
+    RRF --> MATCH["5️⃣ Match Evidence<br/>to Rubric Keywords"]
+    RRF --> GAPS["6️⃣ Identify Gaps<br/>Next Level Criteria"]
+
+    MATCH --> LLM["7️⃣ GPT-4o Summary<br/>IC-Ready PE Memo"]
+    GAPS --> LLM
+
+    LLM --> OUT["📋 ScoreJustification<br/>Score · Rubric · Evidence<br/>Gaps · Summary · Strength"]
+
+    style Q fill:#e74c3c,stroke:#c0392b,color:#fff
+    style RRF fill:#8e44ad,stroke:#6c3483,color:#fff
+    style LLM fill:#27ae60,stroke:#1e8449,color:#fff
+    style OUT fill:#2980b9,stroke:#1f618d,color:#fff
+```
+
+### Airflow DAG Dependencies & Pool Control
+
+```mermaid
+graph TD
+    subgraph DAG1["📡 evidence_collection_pipeline<br/>Sundays 4am UTC"]
+        D1_START["start"] --> D1_POOL["setup_pool<br/>pe_api_pool = 3 slots"]
+        D1_POOL --> D1_HEALTH["check_api_health<br/>+ baseline capture"]
+        D1_HEALTH --> D1_CS2["CS2 Collection<br/>5 companies × pool=3"]
+        D1_CS2 --> D1_CS3["CS3 Collection<br/>5 companies × pool=3"]
+        D1_CS3 --> D1_VAL["validate_collection<br/>Data Quality Gate"]
+        D1_VAL --> D1_END["end"]
+    end
+
+    subgraph DAG2["🎯 scoring_pipeline<br/>Mondays 6am UTC"]
+        D2_START["start"] --> D2_WAIT["wait_for_evidence<br/>ExternalTaskSensor"]
+        D2_WAIT --> D2_BASE["capture_baseline<br/>Drift Detection"]
+        D2_BASE --> D2_SCORE["score_portfolio<br/>pool=pe_api_pool"]
+        D2_SCORE --> D2_VAL["validate_results<br/>Ranges + Ranking"]
+        D2_VAL --> D2_AGG["aggregate_portfolio<br/>Audit Report"]
+        D2_AGG --> D2_END["end"]
+    end
+
+    subgraph DAG3["🔍 pe_evidence_indexing<br/>Daily 2am UTC"]
+        D3_START["start"] --> D3_POOL["setup_pool"]
+        D3_POOL --> D3_HEALTH["check_cs4_health<br/>+ pre-index stats"]
+        D3_HEALTH --> D3_IDX["Index 5 Companies<br/>pool=3 concurrent"]
+        D3_IDX --> D3_VER["verify_index_stats<br/>Pre/Post Delta Report"]
+        D3_VER --> D3_END["end"]
+    end
+
+    D1_END -.->|"ExternalTaskSensor"| D2_WAIT
+
+    subgraph POOL["🏊 pe_api_pool (3 slots)"]
+        PS["Max 3 concurrent<br/>API calls across<br/>all DAGs"]
+    end
+
+    D1_CS2 -.-> PS
+    D1_CS3 -.-> PS
+    D2_SCORE -.-> PS
+    D3_IDX -.-> PS
+
+    style DAG1 fill:#1a3a5c,stroke:#4a90d9,color:#fff
+    style DAG2 fill:#3a1a5c,stroke:#9a4ad9,color:#fff
+    style DAG3 fill:#1a5c3a,stroke:#4ad94a,color:#fff
+    style POOL fill:#5c1a1a,stroke:#d94a4a,color:#fff
+```
+
+### LLM Multi-Model Routing (Task 7.1)
+
+```mermaid
+graph LR
+    subgraph Tasks["Task Types"]
+        T1["Justification<br/>Generation"]
+        T2["Evidence<br/>Extraction"]
+        T3["Chat / HyDE<br/>Generation"]
+    end
+
+    subgraph Router["LiteLLM Router<br/>+ Daily Budget $10"]
+        R["ModelRouter.complete()"]
+    end
+
+    subgraph Models["Models"]
+        M1["gpt-4o<br/>Best quality<br/>$2.50/1M tokens"]
+        M2["gpt-4o-mini<br/>Fast + cheap<br/>$0.15/1M tokens"]
+        M3["gpt-3.5-turbo<br/>Fallback<br/>$0.50/1M tokens"]
+    end
+
+    T1 --> R
+    T2 --> R
+    T3 --> R
+
+    R -->|"primary"| M1
+    R -->|"primary"| M2
+    R -.->|"fallback"| M3
+
+    style Tasks fill:#2c3e50,stroke:#3498db,color:#fff
+    style Router fill:#8e44ad,stroke:#9b59b6,color:#fff
+    style Models fill:#27ae60,stroke:#2ecc71,color:#fff
 ```
 
 ---
@@ -192,8 +309,8 @@ News/PR ────┘                               └─── Culture & Cha
 | **Org-AI-R** | 81.7 (VR=78.3, HR=92.0) |
 | **Key Strengths** | Data Infrastructure (Level 5), Technology Stack (Level 5), AI Governance (Level 4) |
 | **Key Gaps** | No evidence of CAIO, CDO, CTO AI roles |
-| **Risk Factors** | Weak evidence for talent, leadership, culture dimensions |
-| **Total Evidence** | 337 indexed documents (SEC chunks + Glassdoor + Board + News + Jobs) |
+| **Risk Factors** | No major risk factors identified |
+| **Total Evidence** | 5,088 indexed documents (SEC chunks + Glassdoor + Board + News + Jobs) |
 
 ---
 
@@ -204,117 +321,54 @@ pe-org-air-platform/
 ├── app/                                 # CS1–CS3 Backend
 │   ├── main.py                          # FastAPI application entry point
 │   ├── config.py                        # Pydantic settings (env-based)
-│   ├── logging.py                       # Structured logging (structlog)
 │   ├── models/                          # Pydantic data models
-│   │   ├── company.py                   # Company CRUD models
-│   │   ├── assessment.py                # Assessment lifecycle models
-│   │   ├── dimension.py                 # 7-dimension weights & scores
-│   │   ├── document.py                  # SEC document models
-│   │   ├── signal.py                    # CS2 signal models + configurable weights
-│   │   └── common.py                    # Pagination helpers
 │   ├── routers/                         # FastAPI API endpoints
-│   │   ├── health.py                    # GET /health (Snowflake/Redis/S3 status)
+│   │   ├── health.py                    # GET /health
 │   │   ├── companies.py                 # CRUD /api/v1/companies
 │   │   ├── assessments.py               # CRUD /api/v1/assessments
-│   │   ├── scores.py                    # PUT /api/v1/scores/{id}
-│   │   ├── industries.py                # CRUD /api/v1/industries
-│   │   ├── config.py                    # GET /api/v1/config/dimension-weights
 │   │   ├── documents.py                 # CRUD /api/v1/documents
 │   │   ├── signals.py                   # CRUD /api/v1/signals + /evidence
-│   │   ├── rubrics.py                   # GET /api/v1/rubrics/{dimension} (CS4 prereq)
+│   │   ├── rubrics.py                   # GET /api/v1/rubrics/{dimension}
 │   │   └── pipeline.py                  # Pipeline execution & orchestration
-│   ├── services/                        # External service integrations
-│   │   ├── snowflake.py                 # Snowflake ORM + CRUD operations
-│   │   ├── redis_cache.py               # Redis caching decorators
-│   │   └── s3_storage.py                # S3 document storage (optional)
-│   ├── pipelines/                       # Data collection pipelines
-│   │   ├── sec_edgar.py                 # SEC EDGAR filing downloader
-│   │   ├── document_parser.py           # PDF/HTML parser + section extraction
-│   │   ├── job_signals.py               # Job posting scraper (Indeed/LinkedIn)
-│   │   ├── tech_signals.py              # Technology stack analyzer
-│   │   ├── patent_signals.py            # USPTO patent search
-│   │   ├── glassdoor_collector.py       # Glassdoor review analyzer (CS3)
-│   │   ├── board_analyzer.py            # Board composition analyzer (CS3)
-│   │   └── news_collector.py            # News/press release collector (CS3)
-│   ├── scoring/                         # CS3 Scoring Engine
-│   │   ├── evidence_mapper.py           # 9 sources → 7 dimensions (Table 1)
-│   │   ├── rubric_scorer.py             # 5-level rubrics × 7 dimensions
-│   │   ├── talent_concentration.py      # Key-person risk (TC)
-│   │   ├── utils.py                     # Decimal math utilities
-│   │   ├── vr_calculator.py             # Value-Readiness (VR)
-│   │   ├── position_factor.py           # Sector-relative positioning (PF)
-│   │   ├── hr_calculator.py             # Historical Readiness (HR)
-│   │   ├── confidence.py                # SEM-based confidence intervals
-│   │   ├── synergy_calculator.py        # VR-HR synergy effects
-│   │   ├── org_air_calculator.py        # Final Org-AI-R formula
-│   │   └── integration_service.py       # Full pipeline orchestration
-│   └── database/
-│       └── schema.sql                   # Snowflake DDL + seed data
+│   ├── services/                        # Snowflake ORM, Redis cache, S3
+│   ├── pipelines/                       # SEC EDGAR, Jobs, Patents, Glassdoor, Board, News
+│   └── scoring/                         # CS3: Evidence mapper → Rubric → VR/HR/Synergy → Org-AI-R
 │
-├── src/                                 # CS4 RAG & Search (NEW)
-│   ├── config.py                        # CS4 settings (env-based, LLM config)
+├── src/                                 # CS4 RAG & Search
+│   ├── config.py                        # CS4 settings (LLM config, retrieval tuning)
 │   ├── services/
 │   │   ├── integration/                 # CS1/CS2/CS3 API Clients
-│   │   │   ├── cs1_client.py            # Company metadata (ticker, sector, position)
-│   │   │   ├── cs2_client.py            # Evidence loader (docs + signals + local JSON)
-│   │   │   └── cs3_client.py            # Scoring client (scores, rubrics, fallback)
-│   │   ├── llm/
-│   │   │   └── router.py               # LiteLLM multi-provider router + budget
-│   │   ├── search/
-│   │   │   └── vector_store.py          # ChromaDB with metadata filtering
+│   │   │   ├── cs1_client.py            # Company metadata (ticker → UUID resolution)
+│   │   │   ├── cs2_client.py            # Evidence loader (Snowflake + local JSON enrichment)
+│   │   │   └── cs3_client.py            # Scoring client (scores, rubrics, local fallback)
+│   │   ├── llm/router.py               # LiteLLM multi-provider router + budget tracking
+│   │   ├── search/vector_store.py       # ChromaDB with metadata filtering
 │   │   ├── retrieval/
 │   │   │   ├── dimension_mapper.py      # Signal → Dimension mapping (PDF Table 1)
 │   │   │   ├── hybrid.py               # Dense + BM25 + RRF fusion
 │   │   │   └── hyde.py                  # Hypothetical Document Embeddings
-│   │   ├── justification/
-│   │   │   └── generator.py             # Score justification with cited evidence
-│   │   ├── workflows/
-│   │   │   └── ic_prep.py              # IC meeting prep (parallel, 7 dims)
-│   │   └── collection/
-│   │       └── analyst_notes.py         # DD evidence collector (4 note types)
-│   └── api/                             # CS4 FastAPI Endpoints
+│   │   ├── justification/generator.py   # Score justification with cited evidence
+│   │   ├── workflows/ic_prep.py         # IC meeting prep (asyncio.gather, 7 dims)
+│   │   └── collection/analyst_notes.py  # DD evidence collector (4 note types)
+│   └── api/                             # CS4 FastAPI endpoints
 │       ├── search.py                    # Search, index, stats, LLM status
 │       └── justification.py             # Justification, IC prep, analyst notes
 │
 ├── cs4_api.py                           # CS4 FastAPI app (port 8003)
-│
-├── exercises/
-│   └── complete_pipeline.py             # End-to-end NVDA exercise
-│
-├── streamlit_app.py                     # 14-page Streamlit dashboard (CS2+CS3+CS4)
-│
-├── airflow/dags/
-│   ├── evidence_collection_dag.py       # CS2+CS3 evidence collection
-│   ├── scoring_pipeline_dag.py          # Scoring + validation + aggregation
-│   └── evidence_indexing_dag.py         # CS4 nightly evidence indexing (NEW)
-│
-├── tests/                               # Test suite
-│   ├── test_scoring_engine.py           # 49 tests inc. 6 Hypothesis property tests
-│   ├── test_scoring_utils.py            # 21 Decimal utility tests
-│   ├── test_collectors.py               # 21 Glassdoor + Board tests
-│   ├── test_sec_edgar.py                # SEC parser + chunker tests
-│   ├── test_cs4_integration.py          # CS1/CS2/CS3 client tests (NEW)
-│   ├── test_cs4_rag.py                  # Config, LLM, VectorStore, Hybrid, HyDE (NEW)
-│   ├── test_cs4_workflows.py            # Justification, IC Prep, Analyst Notes (NEW)
-│   └── test_cs4_api.py                  # FastAPI endpoint tests (NEW)
-│
-├── results/                             # Portfolio scoring outputs (JSON)
-├── data/
-│   ├── glassdoor/                       # Cached Glassdoor reviews (real API data)
-│   ├── board/                           # Board composition data (real API data)
-│   └── news/                            # Cached news articles (real API data)
-├── chroma_data/                         # ChromaDB persistent vector store (CS4)
+├── streamlit_app.py                     # 14-page Streamlit dashboard
+├── airflow/dags/                        # 3 DAGs with pool-based concurrency
+│   ├── evidence_collection_dag.py       # CS2+CS3 collection (pool-limited)
+│   ├── scoring_pipeline_dag.py          # Scoring + validation + drift detection
+│   └── evidence_indexing_dag.py         # CS4 nightly indexing (pool-limited)
+├── tests/                               # 255+ tests (CS1-CS4)
 ├── docker/
-│   ├── compose.yaml                     # 8-service Docker Compose (+CS4 RAG API)
+│   ├── compose.yaml                     # 8-service Docker Compose
 │   ├── Dockerfile                       # FastAPI container
-│   ├── Dockerfile.cs4                   # CS4 RAG API container (NEW)
-│   ├── Dockerfile.streamlit             # Streamlit container
-│   └── .env.example                     # Environment template (no secrets)
-├── docs/
-│   └── evidence_report.md              # Full evidence & scoring report
-├── pyproject.toml                       # Poetry dependencies
-├── requirements.txt                     # Pip requirements (exported)
-└── .env.example                         # Root environment template
+│   ├── Dockerfile.cs4                   # CS4 RAG API container
+│   └── Dockerfile.streamlit             # Streamlit container
+├── results/                             # Portfolio scoring outputs (JSON)
+├── data/                                # Cached evidence (Glassdoor, Board, News)
+└── chroma_data/                         # ChromaDB persistent vector store
 ```
 
 ---
@@ -323,81 +377,54 @@ pe-org-air-platform/
 
 ### Option 1: Docker Compose (Recommended)
 
-Full stack with API, CS4 RAG API, Streamlit, Redis, Airflow, PostgreSQL — **8 services**.
-
 ```bash
-# 1. Clone the repository
+# 1. Clone and configure
 git clone <repository-url>
-cd BigDataIA-SPring26-Team-4-case-study-4/pe-org-air-platform
+cd BigDataIA-SPring26-Team-4-case-study-4
+cp .env.example .env
+# Edit .env with Snowflake credentials, API keys, and OpenAI key
 
-# 2. Configure environment
-cp docker/.env.example docker/.env
-# Edit docker/.env with your Snowflake credentials and API keys
-# Optional: Set CS4_PRIMARY_MODEL=gpt-4o for LLM-powered summaries
-
-# 3. Build and start all services
+# 2. Build and start all 8 services
 cd docker
 docker compose up --build -d
 
-# 4. Verify all services are running
-docker compose ps
-# Expected: 7 services running (+ airflow-init exited 0)
+# 3. Access applications
+# Streamlit:     http://localhost:8501
+# CS3 API Docs:  http://localhost:8000/docs
+# CS4 RAG Docs:  http://localhost:8003/docs
+# Airflow:       http://localhost:8080 (admin/admin)
 
-# 5. Access the applications
-# FastAPI Docs (CS1-CS3): http://localhost:8000/docs
-# CS4 RAG API Docs:       http://localhost:8003/docs
-# Streamlit UI:            http://localhost:8501
-# Airflow UI:              http://localhost:8080 (admin/admin)
-
-# 6. Stop all services
+# 4. Stop
 docker compose down
 ```
 
 ### Option 2: Local Development
 
 ```bash
-# 1. Clone and install
-git clone <repository-url>
-cd BigDataIA-SPring26-Team-4-case-study-4
+# 1. Install and configure
 poetry install
+cp .env.example .env  # Add credentials
 
-# 2. Configure environment
-cp .env.example .env
-# Edit .env with your Snowflake credentials and API keys
+# 2. Start services (3 terminals)
+poetry run uvicorn app.main:app --reload --port 8000      # Terminal 1: CS3
+poetry run uvicorn cs4_api:app --reload --port 8003        # Terminal 2: CS4
+poetry run streamlit run streamlit_app.py                   # Terminal 3: UI
 
-# 3. Start CS3 backend API (Terminal 1)
-poetry run uvicorn app.main:app --reload --port 8000
-
-# 4. Start CS4 RAG API (Terminal 2)
-poetry run uvicorn cs4_api:app --reload --port 8003
-
-# 5. Start Streamlit (Terminal 3)
-poetry run streamlit run streamlit_app.py
-
-# 6. Index evidence for search (via Streamlit ⚙️ RAG Settings page)
-# Or via API: curl -X POST http://localhost:8003/api/v1/index -d '{"company_id":"NVDA"}'
-
-# 7. Run tests
+# 3. Run tests
 poetry run pytest -v
 ```
 
-### CS4 LLM Configuration (Optional)
-
-CS4 works fully without LLM (template-based summaries). To enable LLM-powered summaries and HyDE query enhancement:
+### CS4 LLM Configuration
 
 ```bash
-# In .env file — set any LiteLLM-compatible model:
-CS4_PRIMARY_MODEL=gpt-4o              # OpenAI
-# CS4_PRIMARY_MODEL=claude-sonnet-4-20250514  # Anthropic
-# CS4_PRIMARY_MODEL=ollama/llama3     # Local Ollama
-
-# Provider API key (whichever you use):
-OPENAI_API_KEY=sk-...
-# ANTHROPIC_API_KEY=sk-ant-...
-
-# Optional: task-specific models, budget limit
+# .env — multi-model routing for different task types
+CS4_PRIMARY_MODEL=gpt-4o-mini
 CS4_FALLBACK_MODEL=gpt-3.5-turbo
-CS4_DAILY_BUDGET_USD=50.0
+CS4_JUSTIFICATION_MODEL=gpt-4o          # Best quality for IC memos
+CS4_EXTRACTION_MODEL=gpt-4o-mini        # Fast + cheap for extraction
+CS4_CHAT_MODEL=gpt-4o-mini              # Lightweight for HyDE + chat
+OPENAI_API_KEY=sk-...
+CS4_DAILY_BUDGET_USD=10.0
 ```
 
 ---
@@ -411,45 +438,21 @@ CS4_DAILY_BUDGET_USD=50.0
 | **VR** | D̄w × (1 − λ × cv_D) × TalentRiskAdj | λ = 0.25 |
 | **HR** | HR_base × (1 + δ × PF) | δ = 0.15 |
 | **PF** | 0.6 × VR_component + 0.4 × MCap_component | bounded [-1, 1] |
-| **TC** | 0.4×leadership + 0.3×team_size + 0.2×skills + 0.1×mentions | bounded [0, 1] |
-| **TalentRiskAdj** | 1 − 0.15 × max(0, TC − 0.25) | |
 | **Synergy** | VR × HR / 100 × Alignment × TimingFactor | TimingFactor ∈ [0.8, 1.2] |
-| **SEM** | σ × √(1 − ρ), ρ = Spearman-Brown | 95% CI |
 | **Final** | (1 − β) × [α × VR + (1 − α) × HR] + β × Synergy | α=0.60, β=0.12 |
 
-### CS2 Signal Weights (Configurable)
+### CS4 Hybrid Retrieval Parameters
 
-| Signal | Default Weight | Source |
-|--------|---------------|--------|
-| Technology Hiring | **0.30** | Job Postings (Indeed) |
-| Innovation Activity | **0.25** | Patents (USPTO) |
-| Digital Presence | **0.25** | Tech Stack |
-| Leadership Signals | **0.20** | Glassdoor + Board + News |
-
-### 7 AI-Readiness Dimensions
-
-| # | Dimension | Weight | Primary Evidence Source |
-|---|-----------|--------|----------------------|
-| D1 | Data Infrastructure | 0.25 | Tech Stack (0.60) |
-| D2 | AI Governance | 0.20 | SEC Item 1A (0.80), Board (0.70) |
-| D3 | Technology Stack | 0.15 | Innovation/Patents (0.50) |
-| D4 | Talent & Skills | 0.15 | Job Postings (0.70) |
-| D5 | Leadership & Vision | 0.10 | Leadership Signals (0.60) |
-| D6 | Use Case Portfolio | 0.10 | SEC Item 1 (0.70) |
-| D7 | Culture & Change | 0.05 | Glassdoor (0.80) |
-
-### CS4 Hybrid Retrieval
-
-| Parameter | Value | Source |
-|-----------|-------|--------|
-| Dense Weight | 0.60 | `CS4_DENSE_WEIGHT` env var |
-| Sparse (BM25) Weight | 0.40 | `CS4_BM25_WEIGHT` env var |
-| RRF Constant (k) | 60 | `CS4_RRF_K` env var |
-| Embedding Model | all-MiniLM-L6-v2 | `CS4_EMBEDDING_MODEL` env var |
-| Embedding Dimensions | 384 | Fixed by model |
-| Candidate Multiplier | 3× | Retrieve 3×k from each method before fusion |
-| HyDE Enhancement | Auto (requires LLM) | Falls back to raw query if no LLM |
-| Daily Budget | $50.00 | `CS4_DAILY_BUDGET_USD` env var |
+| Parameter | Value | Configurable Via |
+|-----------|-------|-----------------|
+| Dense Weight | 0.60 | `CS4_DENSE_WEIGHT` |
+| Sparse (BM25) Weight | 0.40 | `CS4_BM25_WEIGHT` |
+| RRF Constant (k) | 60 | `CS4_RRF_K` |
+| Embedding Model | all-MiniLM-L6-v2 (384-dim) | `CS4_EMBEDDING_MODEL` |
+| Candidate Multiplier | 3× | Hardcoded |
+| HyDE Enhancement | Auto (requires LLM) | Falls back to raw query |
+| Daily Budget | $10.00 | `CS4_DAILY_BUDGET_USD` |
+| Airflow Pool Slots | 3 concurrent | `pe_api_pool` |
 
 ---
 
@@ -457,92 +460,79 @@ CS4_DAILY_BUDGET_USD=50.0
 
 ### CS1/CS2/CS3 API (Port 8000)
 
-All data flows through **FastAPI routers** → **Snowflake**:
-
 | Router | Prefix | Purpose |
 |--------|--------|---------|
-| `health.py` | `/health` | Health check (Snowflake/Redis/S3 status) |
-| `companies.py` | `/api/v1/companies` | Company CRUD with pagination |
-| `assessments.py` | `/api/v1/assessments` | Assessment lifecycle management |
-| `scores.py` | `/api/v1/scores` | Individual dimension score updates |
-| `industries.py` | `/api/v1/industries` | Industry reference data (cached 1hr) |
-| `config.py` | `/api/v1/config` | Dimension weight configuration |
-| `documents.py` | `/api/v1/documents` | SEC document CRUD |
+| `health.py` | `/health` | Health check (Snowflake/Redis/S3) |
+| `companies.py` | `/api/v1/companies` | Company CRUD + ticker lookup |
+| `assessments.py` | `/api/v1/assessments` | Assessment lifecycle |
+| `documents.py` | `/api/v1/documents` | SEC document CRUD + chunks |
 | `signals.py` | `/api/v1/signals` | External signal CRUD + evidence stats |
-| `rubrics.py` | `/api/v1/rubrics` | Dimension rubric criteria (CS4 prereq) |
-| `pipeline.py` | `/api/v1/pipeline` | Pipeline execution, scoring, weight recalculation |
+| `rubrics.py` | `/api/v1/rubrics` | Dimension rubric criteria |
+| `pipeline.py` | `/api/v1/pipeline` | Pipeline execution, scoring, weights |
 
 ### CS4 RAG API (Port 8003)
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/api/v1/search` | GET | Hybrid search with metadata filters (company, dimension, source, confidence) |
-| `/api/v1/index` | POST | Index company evidence from CS2 into ChromaDB + BM25 |
-| `/api/v1/index/stats` | GET | Indexing statistics (ChromaDB count, BM25 status, fusion config) |
-| `/api/v1/llm/status` | GET | LLM provider health, configured models, daily budget |
-| `/api/v1/justification/{company}/{dim}` | GET | Score justification with cited evidence and gaps |
-| `/api/v1/ic-prep/{company}` | GET | Full IC meeting package (7 dims, recommendation) |
-| `/api/v1/analyst-notes/interview` | POST | Submit interview transcript |
-| `/api/v1/analyst-notes/dd-finding` | POST | Submit due diligence finding |
-| `/api/v1/analyst-notes/data-room` | POST | Submit data room document summary |
-| `/api/v1/analyst-notes/meeting` | POST | Submit management meeting notes |
-| `/api/v1/analyst-notes/{company}` | GET | List all analyst notes for a company |
-| `/health` | GET | CS4 service health check |
+| `/api/v1/search` | GET | Hybrid search with metadata filters |
+| `/api/v1/index` | POST | Index company evidence → ChromaDB + BM25 |
+| `/api/v1/index/stats` | GET | Indexing statistics |
+| `/api/v1/llm/status` | GET | LLM providers, models, daily budget |
+| `/api/v1/justification/{company}/{dim}` | GET | Score justification with cited evidence |
+| `/api/v1/ic-prep/{company}` | GET | Full IC meeting package (7 dimensions) |
+| `/api/v1/analyst-notes/*` | POST/GET | Submit & list analyst notes (4 types) |
+| `/health` | GET | Service health check |
 
 ---
 
 ## Streamlit Dashboard (14 Pages)
 
-### CS2/CS3 Pages (9 pages)
+### CS2/CS3 Pages
 
 | Page | Features |
 |------|----------|
 | 📊 Portfolio Overview | KPI metrics, bar charts with CI, VR/HR/Synergy breakdown |
-| 🔍 Company Deep Dive | 7-dimension radar chart, score decomposition, scoring parameters |
-| 📐 Dimension Analysis | Heatmap, per-dimension comparison, multi-company radar overlay |
-| 📡 CS2 Evidence Dashboard | Signal weights from API, evidence stats, quick composite recalculation |
-| ⚖️ Signal Weight Configurator | Interactive sliders, live preview, persist to Snowflake via API |
-| 🚀 Pipeline Control | Run CS2/CS3/Scoring pipelines via API, progress tracking, task history |
-| 🧮 Scoring Methodology | Formulas, dimension weights from API, Sankey diagram, router architecture |
-| 📂 Evidence Explorer | Direct API calls to /documents and /signals routers, 6 evidence tabs |
-| 🧪 Testing & Coverage | Run pytest from UI, coverage chart, Hypothesis property test details |
+| 🔍 Company Deep Dive | 7-dimension radar chart, score decomposition |
+| 📐 Dimension Analysis | Heatmap, cross-company comparison, radar overlay |
+| 📡 CS2 Evidence Dashboard | Signal weights, evidence stats, composite recalculation |
+| ⚖️ Signal Weight Configurator | Interactive sliders, live preview, persist to Snowflake |
+| 🚀 Pipeline Control | Run pipelines via API, progress tracking, task history |
+| 🧮 Scoring Methodology | Formulas, Sankey diagram, dimension weights |
+| 📂 Evidence Explorer | Direct API calls, 6 evidence tabs (SEC, Glassdoor, Board, Jobs, News) |
+| 🧪 Testing & Coverage | Run pytest from UI, coverage chart, property test details |
 
-### CS4 RAG & Search Pages (5 pages)
+### CS4 RAG & Search Pages
 
 | Page | Features |
 |------|----------|
-| 🔎 Evidence Search | Hybrid retrieval with company/dimension/source/confidence filters, expandable result cards with score badges |
-| 📋 Score Justification | Score card, rubric match, IC-ready summary (LLM or template), cited evidence with keyword matches, gap identification |
-| 📑 IC Meeting Prep | Executive summary, recommendation badge (PROCEED/CAUTION/DILIGENCE), strengths/gaps/risks columns, 7-dimension expandable justifications |
-| 📝 Analyst Notes | 4 note types (Interview, DD Finding, Data Room, Meeting) with forms, recent notes display |
-| ⚙️ RAG Settings | Service health, LLM provider status with budget tracker, evidence indexing (single + bulk), index stats, API reference |
+| 🔎 Evidence Search | Hybrid retrieval, company/dimension/source filters, score-badged expandable cards |
+| 📋 Score Justification | Score card, rubric match, GPT-4o IC-ready summary, cited evidence, gap identification |
+| 📑 IC Meeting Prep | Recommendation badge, executive summary, strengths/gaps/risks, 7-dimension justifications |
+| 📝 Analyst Notes | 4 note types (Interview, DD Finding, Data Room, Meeting), real-time indexing |
+| ⚙️ RAG Settings | Service health, LLM status + budget, evidence indexing, index stats, API reference |
 
 ---
 
-## Airflow DAGs
+## Airflow DAGs (Pool-Controlled)
 
-| DAG | Schedule | Tasks | Description |
-|-----|----------|-------|-------------|
-| `evidence_collection_pipeline` | Sundays 4am UTC | 16 | CS2 + CS3 collection (parallel per company) via API |
-| `scoring_pipeline` | Mondays 6am UTC | 6 | Score portfolio + validate ranges + aggregate ranking |
-| `pe_evidence_indexing` | Daily 2am UTC | 7 | CS4: Fetch new CS2 evidence → index in ChromaDB + BM25 (NEW) |
+All DAGs share `pe_api_pool` (3 slots) to prevent backend overload — scales safely to 20+ companies.
+
+| DAG | Schedule | Pool | Key Features |
+|-----|----------|------|-------------|
+| `evidence_collection_pipeline` | Sundays 4am | ✅ 3 slots | CS2+CS3 collection → **data quality validation gate** |
+| `scoring_pipeline` | Mondays 6am | ✅ 3 slots | ExternalTaskSensor → score → **range validation** → **drift detection** → audit report |
+| `pe_evidence_indexing` | Daily 2am | ✅ 3 slots | Health check → index (pooled) → **pre/post delta verification** |
+
+**Why Airflow over Streamlit?** Streamlit is interactive (click-to-run). Airflow adds: scheduled automation, pool concurrency control, dependency chains (ExternalTaskSensor), data quality gates, drift detection, SLA monitoring, retry with exponential backoff, and full audit trail.
 
 ---
 
 ## Testing
 
 ```bash
-# Run full test suite (CS1-CS4)
-poetry run pytest -v
-
-# CS3 scoring tests with coverage
-poetry run pytest --cov=app/scoring --cov=src -v
-
-# CS4 tests only
-poetry run pytest tests/test_cs4_*.py -v
-
-# Property-based tests only
-poetry run pytest tests/test_scoring_engine.py -k "property" -v
+poetry run pytest -v                          # Full suite
+poetry run pytest tests/test_cs4_*.py -v      # CS4 only
+poetry run pytest --cov=app/scoring --cov=src  # With coverage
 ```
 
 | Metric | Value |
@@ -558,7 +548,7 @@ poetry run pytest tests/test_scoring_engine.py -k "property" -v
 
 | Member | Contributions |
 |--------|--------------|
-| **Deep Prajapati** | CS1 API design, CS2 evidence collection (SEC, jobs, patents, tech), CS3 scoring engine (all 11 components), Glassdoor/Board/News collectors, CS4 RAG pipeline (hybrid retrieval, HyDE, justification generator, IC prep workflow, analyst notes), Streamlit dashboard (14 pages), Docker Compose setup, Airflow DAGs (3 DAGs), full integration testing |
+| **Deep Prajapati** | CS1 API design, CS2 evidence collection (SEC, jobs, patents, tech), CS3 scoring engine (all 11 components), Glassdoor/Board/News collectors, CS4 RAG pipeline (hybrid retrieval, HyDE, justification generator, IC prep workflow, analyst notes), Streamlit dashboard (14 pages), Docker Compose (8 services), Airflow DAGs (3 DAGs with pool control), full integration testing |
 | **Tapan Patel** | Airflow DAG design reference, initial Docker setup |
 | **Seamus McAvoy** | CS1 API foundation, initial Snowflake schema design, CS2 evidence pipeline contributions |
 
@@ -610,7 +600,7 @@ poetry run pytest tests/test_scoring_engine.py -k "property" -v
 - ✅ Unit & integration tests (5 pts)
 
 ### Extensions (+10 bonus)
-- ✅ Airflow Evidence Indexing DAG (+5 pts)
+- ✅ Airflow Evidence Indexing DAG with pool control (+5 pts)
 - ✅ Docker Compose with CS4 RAG API service (+5 pts)
 
 ### Testing Requirements

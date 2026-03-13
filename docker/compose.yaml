@@ -95,6 +95,7 @@ services:
     volumes:
       - chroma_data:/app/chroma_data
       - ../results:/app/results
+      - ../data:/app/data
     depends_on:
       - api
     restart: unless-stopped

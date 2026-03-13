@@ -1,42 +1,5 @@
 [
   {
-    "title": "Modal AI Edge Platform with NVIDIA Technology",
-    "source": "scanx.trade",
-    "url": "https://scanx.trade/stock-market-news/stocks/hcltech-unveils-visionx-2-0-multi-modal-ai-edge-platform-with-nvidia-technology/33106827",
-    "published_date": "2026-02-20",
-    "snippet": "HCL Technologies announced VisionX 2.0, an upgraded multi-modal AI edge platform developed with NVIDIA technology for mission-critical industrial environments. The platform integrates advanced computer vision, vision language models, and edge-optimized generative AI using NVIDIA's physical AI computing stack including Blueprint for video search, DeepStream, Cosmos Reason VLM, and TAO. Key features include on-premises edge AI performance through NVIDIA Jetson and RTX PRO 6000 Blackwell GPUs, multi-modal AIoT engine for analyzing video, audio, LiDAR and IoT streams, and Zero-Trust edge security architecture with Dell NativeEdge deployments.",
-    "is_ai_related": true,
-    "ai_score": 100,
-    "categories": [
-      "deployment",
-      "ai_strategy"
-    ]
-  },
-  {
-    "title": "Nations looking at overarching AI strategy, not just one component, Nvidia exec Calista Redmond says",
-    "source": "The Economic Times",
-    "url": "https://economictimes.indiatimes.com/tech/artificial-intelligence/nations-looking-at-overarching-ai-strategy-not-just-one-component-nvidia-exec-calista-redmond-says/articleshow/128446925.cms",
-    "published_date": "2026-02-17",
-    "snippet": "Calista Redmond, VP Sovereign AI at Nvidia says that nations are increasingly looking at their overarching AI story and not just one component.",
-    "is_ai_related": true,
-    "ai_score": 80,
-    "categories": [
-      "ai_strategy"
-    ]
-  },
-  {
-    "title": "\"Nations looking at overarching AI strategy, not just one component,\" says Calista Redmond, VP Sovereign AI at Nvidia",
-    "source": "The Tribune",
-    "url": "https://www.tribuneindia.com/news/world/nations-looking-at-overarching-ai-strategy-not-just-one-component-says-calista-redmond-vp-sovereign-ai-at-nvidia/",
-    "published_date": "2026-02-17",
-    "snippet": "Calista Redmond, VP Sovereign AI at Nvidia says that nations are increasingly looking at their overarching AI story and not just one component.",
-    "is_ai_related": true,
-    "ai_score": 100,
-    "categories": [
-      "ai_strategy"
-    ]
-  },
-  {
     "title": "Into the Omniverse: How Industrial AI and Digital Twins Accelerate Design, Engineering and Manufacturing Across Industries",
     "source": "newsroom:NVDA",
     "url": "https://nvidianews.nvidia.com/news",
