@@ -85,8 +85,7 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
-addopts = "-v --cov=app/scoring --cov=app/pipelines/glassdoor_collector --cov=app/pipelines/board_analyzer --cov=src --cov-report=term-missing"
-
+addopts = "-v --cov=src --cov-report=term-missing"
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = true
