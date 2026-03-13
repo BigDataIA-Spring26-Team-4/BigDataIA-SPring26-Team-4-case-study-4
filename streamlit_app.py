@@ -224,7 +224,7 @@ def cs4_get(path: str, params: dict = None, timeout: int = 60):
         return {"error": str(e), "endpoint": path}
 
 
-def cs4_post(path: str, json_body: dict = None, timeout: int = 120):
+def cs4_post(path: str, json_body: dict = None, timeout: int = 300):
     """POST to CS4 API with structured error handling."""
     try:
         r = requests.post(f"{CS4_API_BASE}{path}", json=json_body, timeout=timeout)
