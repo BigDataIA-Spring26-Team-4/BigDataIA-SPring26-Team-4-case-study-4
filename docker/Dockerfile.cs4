@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
 COPY pyproject.toml poetry.lock* ./
 
 # Install Python dependencies (no Poetry in Docker — export to requirements)
-RUN pip install poetry==1.7.1 && \
+RUN pip install poetry==2.2.1 poetry-plugin-export && \
     poetry export -f requirements.txt --output requirements.txt --without-hashes && \
     pip install -r requirements.txt && \
     pip install chromadb litellm && \

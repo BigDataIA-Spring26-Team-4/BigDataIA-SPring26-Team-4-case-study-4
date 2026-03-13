@@ -1,6 +1,7 @@
 # ===========================================================================
 # Docker Compose for PE Org-AI-R Platform
 # Services: API, Streamlit, Redis, PostgreSQL (Airflow), Airflow
+# Run from any directory — all services load secrets from ../.env (project root)
 # ===========================================================================
 
 x-airflow-common: &airflow-common
@@ -38,11 +39,10 @@ services:
     container_name: pe-org-air-api
     ports:
       - "8000:8000"
+    env_file:
+      - ../.env
     environment:
-      # Snowflake
-      SNOWFLAKE_ACCOUNT: ${SNOWFLAKE_ACCOUNT}
-      SNOWFLAKE_USER: ${SNOWFLAKE_USER}
-      SNOWFLAKE_PASSWORD: ${SNOWFLAKE_PASSWORD}
+      # Snowflake defaults (override via .env if needed)
       SNOWFLAKE_DATABASE: ${SNOWFLAKE_DATABASE:-PE_ORG_AIR_DB}
       SNOWFLAKE_SCHEMA: ${SNOWFLAKE_SCHEMA:-PE_ORG_AIR_SCHEMA}
       SNOWFLAKE_WAREHOUSE: ${SNOWFLAKE_WAREHOUSE:-PE_ORG_AIR_WH}
@@ -52,21 +52,11 @@ services:
       REDIS_PORT: 6379
       REDIS_DB: 0
       REDIS_ENABLED: "true"
-      # S3
+      # S3 defaults
       S3_ENABLED: ${S3_ENABLED:-false}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
-      AWS_REGION: ${AWS_REGION:-us-east-1}
-      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
-      # SEC EDGAR
+      # SEC EDGAR defaults
       SEC_EDGAR_EMAIL: ${SEC_EDGAR_EMAIL:-prajapati.dee@northeastern.edu}
       SEC_EDGAR_COMPANY_NAME: ${SEC_EDGAR_COMPANY_NAME:-PE-OrgAIR-Platform}
-      # CS3 API keys
-      PATENTSVIEW_API_KEY: ${PATENTSVIEW_API_KEY:-}
-      WEXTRACTOR_TOKEN: ${WEXTRACTOR_TOKEN:-}
-      RAPIDAPI_KEY: ${RAPIDAPI_KEY:-}
-      SEC_API_KEY: ${SEC_API_KEY:-}
-      GNEWS_API_KEY: ${GNEWS_API_KEY:-}
       # App
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DEBUG: ${DEBUG:-false}
@@ -90,21 +80,13 @@ services:
     container_name: pe-org-air-cs4-rag
     ports:
       - "8003:8003"
+    env_file:
+      - ../.env
     environment:
       # CS4 connects to CS1/CS2/CS3 via the api service
       CS4_CS3_API_URL: "http://api:8000"
-      # LLM Provider (set whichever you use)
-      CS4_PRIMARY_MODEL: ${CS4_PRIMARY_MODEL:-}
-      CS4_FALLBACK_MODEL: ${CS4_FALLBACK_MODEL:-}
-      CS4_EXTRACTION_MODEL: ${CS4_EXTRACTION_MODEL:-}
-      CS4_JUSTIFICATION_MODEL: ${CS4_JUSTIFICATION_MODEL:-}
-      CS4_CHAT_MODEL: ${CS4_CHAT_MODEL:-}
+      # Retrieval tuning defaults
       CS4_DAILY_BUDGET_USD: ${CS4_DAILY_BUDGET_USD:-50.0}
-      # Provider API keys
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      OLLAMA_API_BASE: ${OLLAMA_API_BASE:-}
-      # Retrieval tuning
       CS4_DENSE_WEIGHT: ${CS4_DENSE_WEIGHT:-0.6}
       CS4_BM25_WEIGHT: ${CS4_BM25_WEIGHT:-0.4}
       CS4_RRF_K: ${CS4_RRF_K:-60}
@@ -129,19 +111,19 @@ services:
     container_name: pe-org-air-streamlit
     ports:
       - "8501:8501"
+    env_file:
+      - ../.env
     environment:
       API_BASE: "http://api:8000"
-      SNOWFLAKE_ACCOUNT: ${SNOWFLAKE_ACCOUNT}
-      SNOWFLAKE_USER: ${SNOWFLAKE_USER}
-      SNOWFLAKE_PASSWORD: ${SNOWFLAKE_PASSWORD}
+      # Snowflake defaults
       SNOWFLAKE_DATABASE: ${SNOWFLAKE_DATABASE:-PE_ORG_AIR_DB}
       SNOWFLAKE_SCHEMA: ${SNOWFLAKE_SCHEMA:-PE_ORG_AIR_SCHEMA}
       SNOWFLAKE_WAREHOUSE: ${SNOWFLAKE_WAREHOUSE:-PE_ORG_AIR_WH}
       SNOWFLAKE_ROLE: ${SNOWFLAKE_ROLE:-ACCOUNTADMIN}
+      # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_ENABLED: "true"
-      SEC_API_KEY: ${SEC_API_KEY:-}
     volumes:
       - ../results:/app/results
       - ../data:/app/data

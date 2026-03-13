@@ -21,8 +21,8 @@ FROM base as builder
 COPY pyproject.toml poetry.lock* ./
 
 RUN pip install poetry==1.7.1
-RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
-RUN pip install -r requirements.txt
+RUN poetry config virtualenvs.create false
+RUN poetry install --without dev --no-interaction --no-ansi --no-root
 
 # ============================================================================
 # Runtime stage

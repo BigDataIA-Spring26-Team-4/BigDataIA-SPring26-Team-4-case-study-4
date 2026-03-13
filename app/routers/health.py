@@ -63,7 +63,7 @@ async def check_redis() -> str:
             host=settings.REDIS_HOST,
             port=settings.REDIS_PORT,
             db=settings.REDIS_DB,
-            password=settings.REDIS_PASSWORD,
+            password=settings.REDIS_PASSWORD.get_secret_value() if settings.REDIS_PASSWORD else None,
             socket_connect_timeout=2,
         )
         r.ping()
