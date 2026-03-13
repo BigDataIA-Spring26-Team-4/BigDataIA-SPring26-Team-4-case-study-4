@@ -173,7 +173,7 @@ class JustificationGenerator:
 
         # 3. Build search query from rubric keywords
         if rubric and rubric.keywords:
-            query = " ".join(rubric.keywords[:5])
+            query = " ".join(rubric.keywords)
         else:
             query = dimension.value.replace("_", " ")
 

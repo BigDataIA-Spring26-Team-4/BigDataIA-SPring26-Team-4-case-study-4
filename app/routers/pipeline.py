@@ -567,13 +567,13 @@ def _run_cs2_collection(task_id: str, ticker: str, skip_sec: bool = False):
                 try:
                     doc = parser.parse_filing(filing_path, ticker)
                     chunks = chunker.chunk_document(doc)
-                    insert_document(
+                    doc_row = insert_document(
                         db, company_id=company_id, ticker=ticker,
                         filing_type=doc.filing_type, filing_date=doc.filing_date,
                         content_hash=doc.content_hash, word_count=doc.word_count,
                         chunk_count=len(chunks), source_path=doc.source_path,
                     )
-                    insert_chunks(db, document_id=doc.content_hash, chunks=chunks)
+                    insert_chunks(db, document_id=str(doc_row.id), chunks=chunks)
                     doc_count += 1
                 except Exception:
                     pass

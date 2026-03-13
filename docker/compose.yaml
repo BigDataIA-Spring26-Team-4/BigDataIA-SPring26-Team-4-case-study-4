@@ -115,6 +115,7 @@ services:
       - ../.env
     environment:
       API_BASE: "http://api:8000"
+      CS4_API_BASE: "http://cs4-rag-api:8003"
       # Snowflake defaults
       SNOWFLAKE_DATABASE: ${SNOWFLAKE_DATABASE:-PE_ORG_AIR_DB}
       SNOWFLAKE_SCHEMA: ${SNOWFLAKE_SCHEMA:-PE_ORG_AIR_SCHEMA}

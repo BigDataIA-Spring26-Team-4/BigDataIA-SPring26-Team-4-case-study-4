@@ -360,8 +360,9 @@ if not _api_ok:
     st.sidebar.caption("Start CS3: `poetry run uvicorn app.main:app --reload`")
 
 _cs4_ok = cs4_api_available()
+_cs4_status = "🟢 Connected" if _cs4_ok else "🔴 Offline"
 st.sidebar.markdown(
-    f"**CS4 RAG:** {'\U0001f7e2 Connected' if _cs4_ok else '\U0001f534 Offline'} "
+    f"**CS4 RAG:** {_cs4_status} "
     f"(`{CS4_API_BASE}`)"
 )
 if not _cs4_ok:
