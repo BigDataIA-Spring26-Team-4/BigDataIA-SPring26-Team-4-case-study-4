@@ -1,5 +1,5 @@
 """
-PE Org-AI-R Scoring Dashboard — Case Study 2 + 3 Combined.
+PE Org-AI-R Scoring Dashboard — Case Study 2 + 3 + 4 Combined.
 
 Pages:
   1. Portfolio Overview — rankings, scores, key metrics
@@ -189,6 +189,75 @@ def get_current_signal_weights() -> dict:
     return DEFAULT_SIGNAL_WEIGHTS.copy()
 
 
+# ── CS4 RAG API Helpers ────────────────────────────────────
+
+CS4_API_BASE = os.environ.get("CS4_API_BASE", "http://localhost:8003")
+
+
+def cs4_api_available() -> bool:
+    """Check if CS4 RAG API is reachable."""
+    try:
+        r = requests.get(f"{CS4_API_BASE}/health", timeout=3)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
+def cs4_get(path: str, params: dict = None, timeout: int = 60):
+    """GET from CS4 API with structured error handling."""
+    try:
+        r = requests.get(f"{CS4_API_BASE}{path}", params=params, timeout=timeout)
+        if r.status_code == 200:
+            return r.json()
+        # Parse detail from FastAPI HTTPException if available
+        try:
+            err_json = r.json()
+            detail = err_json.get("detail", r.text)
+        except Exception:
+            detail = r.text
+        return {"error": detail, "status": r.status_code, "endpoint": path}
+    except requests.exceptions.Timeout:
+        return {"error": f"Request timed out after {timeout}s", "endpoint": path}
+    except requests.exceptions.ConnectionError:
+        return {"error": "CS4 API unreachable — is it running on port 8003?", "endpoint": path}
+    except Exception as e:
+        return {"error": str(e), "endpoint": path}
+
+
+def cs4_post(path: str, json_body: dict = None, timeout: int = 120):
+    """POST to CS4 API with structured error handling."""
+    try:
+        r = requests.post(f"{CS4_API_BASE}{path}", json=json_body, timeout=timeout)
+        if r.status_code in (200, 201):
+            return r.json()
+        try:
+            err_json = r.json()
+            detail = err_json.get("detail", r.text)
+        except Exception:
+            detail = r.text
+        return {"error": detail, "status": r.status_code, "endpoint": path}
+    except requests.exceptions.Timeout:
+        return {"error": f"Request timed out after {timeout}s", "endpoint": path}
+    except requests.exceptions.ConnectionError:
+        return {"error": "CS4 API unreachable — is it running on port 8003?", "endpoint": path}
+    except Exception as e:
+        return {"error": str(e), "endpoint": path}
+
+
+def _format_cs4_error(resp: dict) -> str:
+    """Format a CS4 API error response for display in Streamlit."""
+    error = resp.get("error", "Unknown error")
+    status = resp.get("status", "")
+    endpoint = resp.get("endpoint", "")
+    parts = []
+    if status:
+        parts.append(f"**HTTP {status}**")
+    if endpoint:
+        parts.append(f"`{endpoint}`")
+    parts.append(str(error))
+    return " — ".join(parts)
+
+
 # ── Data Loading (API-first, local-fallback) ─────────────────────
 
 @st.cache_data(ttl=60)
@@ -279,7 +348,7 @@ st.set_page_config(
 # ── Sidebar ──────────────────────────────────────────────────────
 
 st.sidebar.title("🎯 PE Org-AI-R Platform")
-st.sidebar.markdown("**Case Study 2 + 3**")
+st.sidebar.markdown("**Case Study 2 + 3 + 4**")
 st.sidebar.divider()
 
 _api_ok = api_available()
@@ -288,7 +357,15 @@ st.sidebar.markdown(
     f"(`{API_BASE}`)"
 )
 if not _api_ok:
-    st.sidebar.caption("Start API: `poetry run uvicorn app.main:app --reload`")
+    st.sidebar.caption("Start CS3: `poetry run uvicorn app.main:app --reload`")
+
+_cs4_ok = cs4_api_available()
+st.sidebar.markdown(
+    f"**CS4 RAG:** {'\U0001f7e2 Connected' if _cs4_ok else '\U0001f534 Offline'} "
+    f"(`{CS4_API_BASE}`)"
+)
+if not _cs4_ok:
+    st.sidebar.caption("Start CS4: `poetry run uvicorn cs4_api:app --reload --port 8003`")
 else:
     # Improvement 5: Show health check in sidebar (cached to avoid slow Redis timeout)
     @st.cache_data(ttl=30)
@@ -318,6 +395,12 @@ page = st.sidebar.radio(
         "🧮 Scoring Methodology",
         "📂 Evidence Explorer",
         "🧪 Testing & Coverage",
+        "─── CS4: RAG & Search ───",
+        "🔎 Evidence Search",
+        "📋 Score Justification",
+        "📑 IC Meeting Prep",
+        "📝 Analyst Notes",
+        "⚙️ RAG Settings",
     ],
 )
 
@@ -1658,3 +1741,842 @@ elif page == "🧪 Testing & Coverage":
     ]
     for icon, req, detail in reqs:
         st.markdown(f"{icon} **{req}** — {detail}")
+
+
+# ══════════════════════════════════════════════════════════════════
+# CS4: RAG & Search Section Separator
+# ══════════════════════════════════════════════════════════════════
+
+elif page == "─── CS4: RAG & Search ───":
+    st.title("🧠 CS4: RAG & Search")
+    st.markdown(
+        "**Case Study 4** adds Retrieval-Augmented Generation (RAG) capabilities "
+        "to the PE Org-AI-R platform. Navigate to one of the CS4 pages below."
+    )
+
+    st.divider()
+
+    cs4_pages = {
+        "🔎 Evidence Search": "Hybrid search (dense + sparse + RRF) across all indexed evidence with metadata filters.",
+        "📋 Score Justification": "Generate rubric-matched, evidence-cited justifications for any company dimension score.",
+        "📑 IC Meeting Prep": "Produce a full Investment Committee meeting package — summary, strengths, gaps, risks, recommendation.",
+        "📝 Analyst Notes": "Submit interview transcripts, DD findings, data room summaries, and meeting notes for indexing.",
+        "⚙️ RAG Settings": "View index stats, LLM provider status, trigger re-indexing, and monitor budget.",
+    }
+    for pg_name, pg_desc in cs4_pages.items():
+        st.markdown(f"**{pg_name}** — {pg_desc}")
+
+    st.divider()
+    st.info(
+        "**Quick Start:**\n\n"
+        "1. Start the CS4 API: `poetry run uvicorn cs4_api:app --reload --port 8003`\n"
+        "2. Go to **⚙️ RAG Settings** → Index evidence for each company\n"
+        "3. Use **🔎 Evidence Search** to verify indexing\n"
+        "4. Generate justifications and IC packages!"
+    )
+
+
+# ══════════════════════════════════════════════════════════════════
+# PAGE: Evidence Search (CS4)
+# ══════════════════════════════════════════════════════════════════
+
+elif page == "🔎 Evidence Search":
+    st.title("🔎 Evidence Search")
+    st.markdown("*Hybrid retrieval (Dense + BM25 + RRF Fusion) across all indexed evidence*")
+
+    if not _cs4_ok:
+        st.error(
+            "🔴 **CS4 RAG API is offline.** Start it with:\n\n"
+            "`poetry run uvicorn cs4_api:app --reload --port 8003`"
+        )
+        st.stop()
+
+    # ── Search Form ──────────────────────────────────────────────
+    st.subheader("Search Parameters")
+
+    query = st.text_input(
+        "Search Query",
+        placeholder="e.g., NVIDIA data infrastructure real-time pipeline",
+        key="cs4_search_query",
+    )
+
+    fc1, fc2, fc3 = st.columns(3)
+    with fc1:
+        search_company = st.selectbox(
+            "Company Filter",
+            ["All"] + list(CS3_COMPANIES.keys()),
+            key="cs4_search_company",
+        )
+    with fc2:
+        search_dimension = st.selectbox(
+            "Dimension Filter",
+            ["All"] + list(DIMENSION_LABELS.keys()),
+            format_func=lambda d: "All Dimensions" if d == "All" else DIMENSION_LABELS.get(d, d),
+            key="cs4_search_dimension",
+        )
+    with fc3:
+        search_top_k = st.slider("Top K Results", 5, 50, 10, key="cs4_search_k")
+
+    fc4, fc5 = st.columns(2)
+    with fc4:
+        source_type_options = [
+            "sec_10k_item_1", "sec_10k_item_1a", "sec_10k_item_7",
+            "job_posting_linkedin", "patent_filing", "glassdoor_review",
+            "board_composition", "news_article", "analyst_note",
+        ]
+        search_sources = st.multiselect(
+            "Source Types", source_type_options, default=[],
+            key="cs4_search_sources",
+        )
+    with fc5:
+        search_min_conf = st.slider(
+            "Min Confidence", 0.0, 1.0, 0.0, 0.05, key="cs4_search_conf",
+        )
+
+    st.divider()
+
+    # ── Execute Search ───────────────────────────────────────────
+    if st.button("🔍 Search", type="primary", key="btn_cs4_search", disabled=not query):
+        _search_endpoint = f"/api/v1/search?q={query}"
+        with st.spinner("Running hybrid retrieval..."):
+            params = {
+                "q": query,
+                "top_k": search_top_k,
+                "min_confidence": search_min_conf,
+            }
+            if search_company != "All":
+                params["company_id"] = search_company
+            if search_dimension != "All":
+                params["dimension"] = search_dimension
+            if search_sources:
+                params["source_types"] = ",".join(search_sources)
+
+            resp = cs4_get("/api/v1/search", params=params)
+
+        if resp and "error" not in resp:
+            total = resp.get("total_results", 0)
+            st.success(f"Found **{total}** results for \"{query}\"")
+            st.caption(f"API: `GET {CS4_API_BASE}/api/v1/search` · Params: company={search_company}, dim={search_dimension}, top_k={search_top_k}")
+
+            # Calculate relative score thresholds (RRF scores are ~0.01-0.02, not 0-1)
+            all_scores = [r.get("score", 0) for r in resp.get("results", [])]
+            max_score = max(all_scores) if all_scores else 1.0
+            high_thresh = max_score * 0.8
+            mid_thresh = max_score * 0.5
+
+            for i, result in enumerate(resp.get("results", [])):
+                meta = result.get("metadata", {})
+                score = result.get("score", 0)
+                method = result.get("retrieval_method", "unknown")
+                doc_id = result.get("doc_id", "")
+
+                # Color-coded score badge (relative to result set)
+                if score >= high_thresh:
+                    score_color = "🟢"
+                elif score >= mid_thresh:
+                    score_color = "🟡"
+                else:
+                    score_color = "🔴"
+
+                header = (
+                    f"{score_color} **#{i+1}** · Score: {score:.3f} · "
+                    f"Method: `{method}` · "
+                    f"Company: `{meta.get('company_id', 'N/A')}` · "
+                    f"Dimension: `{meta.get('dimension', 'N/A')}`"
+                )
+
+                with st.expander(header, expanded=(i < 3)):
+                    st.markdown(f"**Source Type:** {meta.get('source_type', 'N/A')}")
+                    st.markdown(f"**Confidence:** {meta.get('confidence', 'N/A')}")
+                    if meta.get("source_url"):
+                        st.markdown(f"**URL:** [{meta['source_url']}]({meta['source_url']})")
+                    st.divider()
+                    st.markdown(f"**Content:**")
+                    st.text(result.get("content", "")[:800])
+                    st.caption(f"Doc ID: {doc_id}")
+        else:
+            st.error(_format_cs4_error(resp))
+
+    # ── Index Stats ──────────────────────────────────────────────
+    st.divider()
+    with st.expander("📊 Current Index Stats"):
+        stats = cs4_get("/api/v1/index/stats")
+        if stats and "error" not in stats:
+            c1, c2, c3 = st.columns(3)
+            dense = stats.get("dense", {})
+            sparse = stats.get("sparse", {})
+            weights = stats.get("weights", {})
+            c1.metric("Dense (ChromaDB) Docs", dense.get("total_documents", 0))
+            c2.metric("BM25 Initialized", "✅" if sparse.get("bm25_initialized") else "❌")
+            c3.metric("BM25 Corpus Size", sparse.get("corpus_size", 0))
+            st.markdown(
+                f"**Fusion Weights:** Dense={weights.get('dense', 0.6):.1f} · "
+                f"Sparse={weights.get('sparse', 0.4):.1f} · "
+                f"RRF k={weights.get('rrf_k', 60)}"
+            )
+        else:
+            st.warning("Could not fetch index stats.")
+
+
+# ══════════════════════════════════════════════════════════════════
+# PAGE: Score Justification (CS4)
+# ══════════════════════════════════════════════════════════════════
+
+elif page == "📋 Score Justification":
+    st.title("📋 Score Justification")
+    st.markdown("*Generate rubric-matched, evidence-cited justifications for dimension scores*")
+
+    if not _cs4_ok:
+        st.error(
+            "🔴 **CS4 RAG API is offline.** Start it with:\n\n"
+            "`poetry run uvicorn cs4_api:app --reload --port 8003`"
+        )
+        st.stop()
+
+    # ── Selectors ────────────────────────────────────────────────
+    jc1, jc2 = st.columns(2)
+    with jc1:
+        j_ticker = st.selectbox(
+            "Select Company",
+            list(CS3_COMPANIES.keys()),
+            format_func=lambda t: f"{t} — {CS3_COMPANIES[t]['name']}",
+            key="cs4_just_ticker",
+        )
+    with jc2:
+        j_dimension = st.selectbox(
+            "Select Dimension",
+            list(DIMENSION_LABELS.keys()),
+            format_func=lambda d: DIMENSION_LABELS.get(d, d),
+            key="cs4_just_dim",
+        )
+
+    st.divider()
+
+    # ── LLM Config Check ─────────────────────────────────────────
+    _llm_check = cs4_get("/api/v1/llm/status")
+    if _llm_check and "error" not in _llm_check:
+        if not _llm_check.get("configured"):
+            st.warning(
+                "⚠️ **No LLM configured** — Summaries will use template-based fallback instead of LLM generation. "
+                "Set `CS4_PRIMARY_MODEL` env var (e.g. `gpt-4o`, `ollama/llama3`) to enable LLM summaries. "
+                "All other features (scores, rubric match, evidence retrieval, gaps) work without LLM."
+            )
+
+    # ── Generate ─────────────────────────────────────────────────
+    if st.button("⚡ Generate Justification", type="primary", key="btn_cs4_justify"):
+        with st.spinner(f"Generating justification for {j_ticker} / {DIMENSION_LABELS[j_dimension]}..."):
+            resp = cs4_get(f"/api/v1/justification/{j_ticker}/{j_dimension}")
+
+        if resp and "error" not in resp:
+            st.caption(f"API: `GET {CS4_API_BASE}/api/v1/justification/{j_ticker}/{j_dimension}`")
+
+            # ── Score Card ───────────────────────────────────────
+            st.subheader("Score Card")
+            sc1, sc2, sc3, sc4 = st.columns(4)
+            sc1.metric("Score", f"{resp['score']:.1f}")
+            sc2.metric("Level", f"{resp['level']} — {resp['level_name']}")
+            ci = resp.get("confidence_interval", [0, 0])
+            sc3.metric("95% CI", f"[{ci[0]:.1f}, {ci[1]:.1f}]")
+
+            strength = resp.get("evidence_strength", "unknown")
+            strength_emoji = {"strong": "🟢", "moderate": "🟡", "weak": "🔴"}.get(strength, "⚪")
+            sc4.metric("Evidence Strength", f"{strength_emoji} {strength.title()}")
+
+            st.divider()
+
+            # ── Rubric Match ─────────────────────────────────────
+            st.subheader("Rubric Match")
+            st.markdown(f"**Criteria:** {resp.get('rubric_criteria', 'N/A')}")
+            keywords = resp.get("rubric_keywords", [])
+            if keywords:
+                st.markdown("**Rubric Keywords:** " + " · ".join(f"`{kw}`" for kw in keywords))
+
+            st.divider()
+
+            # ── LLM Generated Summary ────────────────────────────
+            st.subheader("IC-Ready Summary")
+            summary = resp.get("generated_summary", "")
+            if summary:
+                st.markdown(summary)
+            else:
+                st.info("No LLM summary generated (LLM may not be configured).")
+
+            st.divider()
+
+            # ── Supporting Evidence ──────────────────────────────
+            st.subheader(f"Supporting Evidence ({len(resp.get('supporting_evidence', []))} items)")
+            for ei, ev in enumerate(resp.get("supporting_evidence", [])):
+                conf = ev.get("confidence", 0)
+                conf_color = "🟢" if conf >= 0.7 else "🟡" if conf >= 0.4 else "🔴"
+                matched = ev.get("matched_keywords", [])
+
+                with st.expander(
+                    f"{conf_color} Evidence #{ei+1} — {ev.get('source_type', 'N/A')} "
+                    f"(confidence: {conf:.2f}, relevance: {ev.get('relevance_score', 0):.2f})",
+                    expanded=(ei < 2),
+                ):
+                    st.text(ev.get("content", "")[:600])
+                    if matched:
+                        st.markdown("**Matched Keywords:** " + ", ".join(f"`{k}`" for k in matched))
+                    if ev.get("source_url"):
+                        st.markdown(f"**Source:** [{ev['source_url']}]({ev['source_url']})")
+
+            # ── Gaps ─────────────────────────────────────────────
+            gaps = resp.get("gaps_identified", [])
+            if gaps:
+                st.divider()
+                st.subheader("Gaps Identified")
+                st.markdown(
+                    "These are keywords from the **next rubric level** "
+                    "not found in the current evidence:"
+                )
+                for gap in gaps:
+                    st.markdown(f"- ⚠️ {gap}")
+        else:
+            st.error(_format_cs4_error(resp))
+
+
+# ══════════════════════════════════════════════════════════════════
+# PAGE: IC Meeting Prep (CS4)
+# ══════════════════════════════════════════════════════════════════
+
+elif page == "📑 IC Meeting Prep":
+    st.title("📑 IC Meeting Preparation")
+    st.markdown("*Generate a complete Investment Committee meeting package with executive summary, justifications, and recommendation*")
+
+    if not _cs4_ok:
+        st.error(
+            "🔴 **CS4 RAG API is offline.** Start it with:\n\n"
+            "`poetry run uvicorn cs4_api:app --reload --port 8003`"
+        )
+        st.stop()
+
+    # ── Selectors ────────────────────────────────────────────────
+    ic_ticker = st.selectbox(
+        "Select Company",
+        list(CS3_COMPANIES.keys()),
+        format_func=lambda t: f"{t} — {CS3_COMPANIES[t]['name']} ({CS3_COMPANIES[t]['sector']})",
+        key="cs4_ic_ticker",
+    )
+
+    ic_focus = st.multiselect(
+        "Focus Dimensions (leave empty for all 7)",
+        list(DIMENSION_LABELS.keys()),
+        format_func=lambda d: DIMENSION_LABELS.get(d, d),
+        default=[],
+        key="cs4_ic_focus",
+    )
+
+    st.divider()
+
+    # ── LLM Config Check ─────────────────────────────────────────
+    _llm_ic = cs4_get("/api/v1/llm/status")
+    if _llm_ic and "error" not in _llm_ic:
+        if not _llm_ic.get("configured"):
+            st.warning(
+                "⚠️ **No LLM configured** — Executive summary will use template-based generation. "
+                "Scores, strengths, gaps, risks, and recommendation are computed without LLM."
+            )
+
+    # ── Generate Package ─────────────────────────────────────────
+    if st.button("📦 Prepare IC Package", type="primary", key="btn_cs4_ic"):
+        with st.spinner(f"Preparing IC meeting package for {ic_ticker}... (this may take 30-60s)"):
+            params = {}
+            if ic_focus:
+                params["focus_dimensions"] = ",".join(ic_focus)
+            resp = cs4_get(f"/api/v1/ic-prep/{ic_ticker}", params=params, timeout=180)
+
+        if resp and "error" not in resp:
+            _ic_params = f"?focus_dimensions={','.join(ic_focus)}" if ic_focus else ""
+            st.caption(f"API: `GET {CS4_API_BASE}/api/v1/ic-prep/{ic_ticker}{_ic_params}`")
+
+            # ── Header ───────────────────────────────────────────
+            st.subheader(f"IC Package: {resp.get('company_name', ic_ticker)} ({ic_ticker})")
+
+            # Recommendation badge (extract keyword before " — " detail)
+            rec_full = resp.get("recommendation", "UNKNOWN")
+            rec_key = rec_full.split(" — ")[0].strip() if " — " in rec_full else rec_full.strip()
+            rec_colors = {
+                "PROCEED": ("🟢", "success"),
+                "PROCEED WITH CAUTION": ("🟡", "warning"),
+                "FURTHER DILIGENCE": ("🔴", "error"),
+            }
+            rec_emoji, rec_type = rec_colors.get(rec_key, ("⚪", "info"))
+            getattr(st, rec_type)(f"{rec_emoji} **Recommendation: {rec_full}**")
+
+            # Score KPIs
+            kc1, kc2, kc3, kc4 = st.columns(4)
+            kc1.metric("Org-AI-R Score", f"{resp.get('org_air_score', 0):.1f}")
+            kc2.metric("VR Score", f"{resp.get('vr_score', 0):.1f}")
+            kc3.metric("HR Score", f"{resp.get('hr_score', 0):.1f}")
+            kc4.metric("Total Evidence", resp.get("total_evidence_count", 0))
+
+            st.divider()
+
+            # ── Executive Summary ────────────────────────────────
+            st.subheader("Executive Summary")
+            st.markdown(resp.get("executive_summary", "*No summary generated.*"))
+
+            st.divider()
+
+            # ── Strengths / Gaps / Risks ─────────────────────────
+            sg1, sg2, sg3 = st.columns(3)
+            with sg1:
+                st.markdown("### 💪 Key Strengths")
+                for s in resp.get("key_strengths", []):
+                    st.markdown(f"- ✅ {s}")
+                if not resp.get("key_strengths"):
+                    st.caption("No significant strengths identified.")
+
+            with sg2:
+                st.markdown("### ⚠️ Key Gaps")
+                for g in resp.get("key_gaps", []):
+                    st.markdown(f"- 🔸 {g}")
+                if not resp.get("key_gaps"):
+                    st.caption("No critical gaps identified.")
+
+            with sg3:
+                st.markdown("### 🚨 Risk Factors")
+                for r_item in resp.get("risk_factors", []):
+                    st.markdown(f"- 🔴 {r_item}")
+                if not resp.get("risk_factors"):
+                    st.caption("No major risk factors identified.")
+
+            st.divider()
+
+            # ── Dimension-by-Dimension Justifications ────────────
+            st.subheader("Dimension Justifications")
+            dim_justs = resp.get("dimension_justifications", {})
+
+            for dim_key, dj in dim_justs.items():
+                dim_label = DIMENSION_LABELS.get(dim_key, dim_key)
+                score_val = dj.get("score", 0)
+                level_val = dj.get("level", 0)
+                level_name = dj.get("level_name", "")
+                ev_count = dj.get("evidence_count", 0)
+                ev_str = dj.get("evidence_strength", "unknown")
+                ev_emoji = {"strong": "🟢", "moderate": "🟡", "weak": "🔴"}.get(ev_str, "⚪")
+
+                with st.expander(
+                    f"{ev_emoji} **{dim_label}** — Score: {score_val:.1f} "
+                    f"(Level {level_val}: {level_name}) · {ev_count} evidence · {ev_str}",
+                    expanded=False,
+                ):
+                    # Summary
+                    dj_summary = dj.get("summary", "")
+                    if dj_summary:
+                        st.markdown(dj_summary)
+
+                    # Gaps
+                    dj_gaps = dj.get("gaps", [])
+                    if dj_gaps:
+                        st.markdown("**Gaps to next level:**")
+                        for gap in dj_gaps:
+                            st.markdown(f"- ⚠️ {gap}")
+
+            st.divider()
+            st.caption(f"Generated at: {resp.get('generated_at', 'N/A')} · Avg evidence strength: {resp.get('avg_evidence_strength', 'N/A')}")
+        else:
+            st.error(_format_cs4_error(resp))
+
+
+# ══════════════════════════════════════════════════════════════════
+# PAGE: Analyst Notes (CS4)
+# ══════════════════════════════════════════════════════════════════
+
+elif page == "📝 Analyst Notes":
+    st.title("📝 Analyst Notes")
+    st.markdown("*Submit interview transcripts, DD findings, data room summaries, and meeting notes for real-time indexing*")
+
+    if not _cs4_ok:
+        st.error(
+            "🔴 **CS4 RAG API is offline.** Start it with:\n\n"
+            "`poetry run uvicorn cs4_api:app --reload --port 8003`"
+        )
+        st.stop()
+
+    # ── Note Type Selector ───────────────────────────────────────
+    note_type = st.radio(
+        "Note Type",
+        ["Interview Transcript", "DD Finding", "Data Room Summary", "Management Meeting"],
+        horizontal=True,
+        key="cs4_note_type",
+    )
+
+    st.divider()
+
+    # Common fields
+    nc1, nc2 = st.columns(2)
+    with nc1:
+        note_company = st.selectbox(
+            "Company",
+            list(CS3_COMPANIES.keys()),
+            format_func=lambda t: f"{t} — {CS3_COMPANIES[t]['name']}",
+            key="cs4_note_company",
+        )
+    with nc2:
+        note_assessor = st.text_input("Assessor (your name/email)", key="cs4_note_assessor")
+
+    # ── Interview Transcript ─────────────────────────────────────
+    if note_type == "Interview Transcript":
+        ic1, ic2 = st.columns(2)
+        with ic1:
+            interviewee_name = st.text_input("Interviewee Name", key="cs4_int_name")
+        with ic2:
+            interviewee_title = st.text_input(
+                "Interviewee Title",
+                placeholder="e.g., CTO, CDO, VP of Engineering",
+                key="cs4_int_title",
+            )
+
+        int_dimensions = st.multiselect(
+            "Dimensions Discussed",
+            list(DIMENSION_LABELS.keys()),
+            format_func=lambda d: DIMENSION_LABELS.get(d, d),
+            key="cs4_int_dims",
+        )
+        transcript = st.text_area(
+            "Transcript",
+            height=250,
+            placeholder="Paste interview transcript here...",
+            key="cs4_int_transcript",
+        )
+
+        if st.button("📤 Submit Interview", type="primary", key="btn_cs4_int"):
+            if not all([interviewee_name, interviewee_title, transcript, note_assessor]):
+                st.warning("Please fill in all fields.")
+            else:
+                resp = cs4_post("/api/v1/analyst-notes/interview", {
+                    "company_id": note_company,
+                    "interviewee": interviewee_name,
+                    "interviewee_title": interviewee_title,
+                    "transcript": transcript,
+                    "assessor": note_assessor,
+                    "dimensions_discussed": int_dimensions,
+                })
+                if resp and "error" not in resp:
+                    st.success(f"✅ Interview submitted — Note ID: `{resp.get('note_id', 'N/A')}`")
+                else:
+                    st.error(_format_cs4_error(resp))
+
+    # ── DD Finding ───────────────────────────────────────────────
+    elif note_type == "DD Finding":
+        dd_title = st.text_input("Finding Title", key="cs4_dd_title")
+        ddc1, ddc2 = st.columns(2)
+        with ddc1:
+            dd_dimension = st.selectbox(
+                "Related Dimension",
+                list(DIMENSION_LABELS.keys()),
+                format_func=lambda d: DIMENSION_LABELS.get(d, d),
+                key="cs4_dd_dim",
+            )
+        with ddc2:
+            dd_severity = st.selectbox(
+                "Severity",
+                ["informational", "minor", "major", "critical"],
+                index=1,
+                key="cs4_dd_severity",
+            )
+        dd_finding = st.text_area(
+            "Finding Details",
+            height=200,
+            placeholder="Describe the due diligence finding...",
+            key="cs4_dd_finding",
+        )
+
+        if st.button("📤 Submit DD Finding", type="primary", key="btn_cs4_dd"):
+            if not all([dd_title, dd_finding, note_assessor]):
+                st.warning("Please fill in all fields.")
+            else:
+                resp = cs4_post("/api/v1/analyst-notes/dd-finding", {
+                    "company_id": note_company,
+                    "title": dd_title,
+                    "finding": dd_finding,
+                    "dimension": dd_dimension,
+                    "severity": dd_severity,
+                    "assessor": note_assessor,
+                })
+                if resp and "error" not in resp:
+                    st.success(f"✅ DD Finding submitted — Note ID: `{resp.get('note_id', 'N/A')}`")
+                else:
+                    st.error(_format_cs4_error(resp))
+
+    # ── Data Room Summary ────────────────────────────────────────
+    elif note_type == "Data Room Summary":
+        dr_doc_name = st.text_input(
+            "Document Name",
+            placeholder="e.g., Financial Model v3.2, Technology Architecture Overview",
+            key="cs4_dr_docname",
+        )
+        dr_dimension = st.selectbox(
+            "Related Dimension",
+            list(DIMENSION_LABELS.keys()),
+            format_func=lambda d: DIMENSION_LABELS.get(d, d),
+            key="cs4_dr_dim",
+        )
+        dr_summary = st.text_area(
+            "Summary",
+            height=200,
+            placeholder="Summarize the key findings from this data room document...",
+            key="cs4_dr_summary",
+        )
+
+        if st.button("📤 Submit Data Room Summary", type="primary", key="btn_cs4_dr"):
+            if not all([dr_doc_name, dr_summary, note_assessor]):
+                st.warning("Please fill in all fields.")
+            else:
+                resp = cs4_post("/api/v1/analyst-notes/data-room", {
+                    "company_id": note_company,
+                    "document_name": dr_doc_name,
+                    "summary": dr_summary,
+                    "dimension": dr_dimension,
+                    "assessor": note_assessor,
+                })
+                if resp and "error" not in resp:
+                    st.success(f"✅ Data Room Summary submitted — Note ID: `{resp.get('note_id', 'N/A')}`")
+                else:
+                    st.error(_format_cs4_error(resp))
+
+    # ── Management Meeting ───────────────────────────────────────
+    elif note_type == "Management Meeting":
+        mtg_title = st.text_input(
+            "Meeting Title",
+            placeholder="e.g., CTO Deep Dive — AI Strategy Discussion",
+            key="cs4_mtg_title",
+        )
+        mtg_attendees = st.text_input(
+            "Attendees (comma-separated)",
+            placeholder="e.g., John Smith (CTO), Jane Doe (CDO), Bob Lee (VP Eng)",
+            key="cs4_mtg_attendees",
+        )
+        mtg_dimensions = st.multiselect(
+            "Dimensions Discussed",
+            list(DIMENSION_LABELS.keys()),
+            format_func=lambda d: DIMENSION_LABELS.get(d, d),
+            key="cs4_mtg_dims",
+        )
+        mtg_notes = st.text_area(
+            "Meeting Notes",
+            height=250,
+            placeholder="Key discussion points and takeaways...",
+            key="cs4_mtg_notes",
+        )
+
+        if st.button("📤 Submit Meeting Notes", type="primary", key="btn_cs4_mtg"):
+            if not all([mtg_title, mtg_notes, note_assessor]):
+                st.warning("Please fill in all fields.")
+            else:
+                attendees_list = [a.strip() for a in mtg_attendees.split(",") if a.strip()]
+                resp = cs4_post("/api/v1/analyst-notes/meeting", {
+                    "company_id": note_company,
+                    "title": mtg_title,
+                    "notes": mtg_notes,
+                    "attendees": attendees_list,
+                    "dimensions_discussed": mtg_dimensions,
+                    "assessor": note_assessor,
+                })
+                if resp and "error" not in resp:
+                    st.success(f"✅ Meeting Notes submitted — Note ID: `{resp.get('note_id', 'N/A')}`")
+                else:
+                    st.error(_format_cs4_error(resp))
+
+    # ── Existing Notes for Company ───────────────────────────────
+    st.divider()
+    st.subheader(f"Recent Notes for {note_company}")
+    notes_resp = cs4_get(f"/api/v1/analyst-notes/{note_company}")
+    if notes_resp and isinstance(notes_resp, list) and len(notes_resp) > 0:
+        for note in notes_resp:
+            ntype = note.get("note_type", "unknown")
+            ntype_emoji = {
+                "INTERVIEW_TRANSCRIPT": "🎙️",
+                "DD_FINDING": "🔍",
+                "DATA_ROOM_SUMMARY": "📁",
+                "MANAGEMENT_MEETING": "🤝",
+            }.get(ntype, "📝")
+
+            with st.expander(
+                f"{ntype_emoji} {note.get('title', 'Untitled')} — "
+                f"{ntype} · by {note.get('assessor', 'Unknown')} · "
+                f"conf={note.get('confidence', 0):.1f}",
+                expanded=False,
+            ):
+                st.markdown(f"**Created:** {note.get('created_at', 'N/A')}")
+                if note.get("dimensions_discussed"):
+                    dims_str = ", ".join(
+                        DIMENSION_LABELS.get(d, d) for d in note["dimensions_discussed"]
+                    )
+                    st.markdown(f"**Dimensions:** {dims_str}")
+                if note.get("risk_flags"):
+                    st.markdown(f"**Risk Flags:** {', '.join(note['risk_flags'])}")
+                st.text(note.get("content", "")[:500])
+    elif isinstance(notes_resp, list) and len(notes_resp) == 0:
+        st.info(f"No analyst notes for {note_company} yet. Submit one above!")
+    else:
+        st.warning(_format_cs4_error(notes_resp) if isinstance(notes_resp, dict) else f"Could not fetch notes: {notes_resp}")
+
+
+# ══════════════════════════════════════════════════════════════════
+# PAGE: RAG Settings (CS4)
+# ══════════════════════════════════════════════════════════════════
+
+elif page == "⚙️ RAG Settings":
+    st.title("⚙️ RAG Settings & Pipeline Status")
+    st.markdown("*Index evidence, monitor LLM providers, and manage the RAG pipeline*")
+
+    if not _cs4_ok:
+        st.error(
+            "🔴 **CS4 RAG API is offline.** Start it with:\n\n"
+            "`poetry run uvicorn cs4_api:app --reload --port 8003`"
+        )
+        st.stop()
+
+    # ── Health Check ─────────────────────────────────────────────
+    st.subheader("🏥 Service Health")
+    health = cs4_get("/health")
+    if health and "error" not in health:
+        hc1, hc2, hc3 = st.columns(3)
+        hc1.metric("Status", "🟢 Healthy" if health.get("status") == "healthy" else "🔴 Unhealthy")
+        hc2.metric("LLM Configured", "✅" if health.get("llm_configured") else "❌ Not Set")
+        idx = health.get("index", {})
+        hc3.metric("Indexed Documents", idx.get("documents", 0))
+
+        ic1, ic2 = st.columns(2)
+        ic1.metric("BM25 Ready", "✅" if idx.get("bm25_ready") else "❌")
+        ic2.metric("Analyst Notes", health.get("notes", 0))
+    else:
+        st.error("Could not reach CS4 health endpoint.")
+
+    st.divider()
+
+    # ── LLM Provider Status ──────────────────────────────────────
+    st.subheader("🤖 LLM Provider Status")
+    llm_status = cs4_get("/api/v1/llm/status")
+    if llm_status and "error" not in llm_status:
+        lc1, lc2 = st.columns(2)
+        with lc1:
+            st.markdown("**Configuration**")
+            st.markdown(f"- LLM Configured: {'✅' if llm_status.get('configured') else '❌'}")
+            providers = llm_status.get("providers", {})
+            for task, model in providers.items():
+                st.markdown(f"- **{task}**: `{model}`")
+
+        with lc2:
+            st.markdown("**Daily Budget**")
+            budget = llm_status.get("budget", {})
+            spent = budget.get("spent_today", 0)
+            limit = budget.get("limit", budget.get("daily_limit", 50))
+            remaining = budget.get("remaining", limit)
+            st.metric("Spent Today", f"${spent:.2f}")
+            st.metric("Remaining", f"${remaining:.2f}")
+            if limit > 0:
+                pct = min(spent / limit * 100, 100)
+                st.progress(pct / 100, text=f"Budget usage: {pct:.0f}%")
+    else:
+        st.warning("Could not fetch LLM status. Ensure CS4 API is running.")
+
+    st.divider()
+
+    # ── Evidence Indexing ────────────────────────────────────────
+    st.subheader("📥 Evidence Indexing")
+    st.markdown(
+        "Index evidence from CS2 into the ChromaDB vector store and BM25 corpus "
+        "for hybrid retrieval. Each company's evidence is fetched via the CS2 client, "
+        "mapped to dimensions, and indexed."
+    )
+
+    idx_ticker = st.selectbox(
+        "Company to Index",
+        list(CS3_COMPANIES.keys()),
+        format_func=lambda t: f"{t} — {CS3_COMPANIES[t]['name']}",
+        key="cs4_idx_ticker",
+    )
+    idx_min_conf = st.slider(
+        "Min Confidence for Indexing", 0.0, 1.0, 0.0, 0.05,
+        key="cs4_idx_conf",
+    )
+
+    ic1, ic2 = st.columns(2)
+    with ic1:
+        if st.button(f"📥 Index {idx_ticker}", key="btn_cs4_idx_one"):
+            with st.spinner(f"Indexing evidence for {idx_ticker}..."):
+                resp = cs4_post("/api/v1/index", {
+                    "company_id": idx_ticker,
+                    "min_confidence": idx_min_conf,
+                })
+            if resp and "error" not in resp:
+                st.success(
+                    f"✅ Indexed **{resp.get('documents_indexed', 0)}** documents "
+                    f"for {idx_ticker}"
+                )
+            else:
+                st.error(_format_cs4_error(resp))
+
+    with ic2:
+        if st.button("📥 Index ALL 5 Companies", key="btn_cs4_idx_all"):
+            for t in CS3_COMPANIES:
+                with st.spinner(f"Indexing {t}..."):
+                    resp = cs4_post("/api/v1/index", {
+                        "company_id": t,
+                        "min_confidence": idx_min_conf,
+                    })
+                if resp and "error" not in resp:
+                    st.write(f"✅ {t}: {resp.get('documents_indexed', 0)} documents indexed")
+                else:
+                    st.write(f"❌ {t}: {resp}")
+            st.success("Bulk indexing complete!")
+
+    st.divider()
+
+    # ── Index Statistics ─────────────────────────────────────────
+    st.subheader("📊 Index Statistics")
+    stats = cs4_get("/api/v1/index/stats")
+    if stats and "error" not in stats:
+        dense = stats.get("dense", {})
+        sparse = stats.get("sparse", {})
+        weights = stats.get("weights", {})
+
+        sc1, sc2, sc3, sc4 = st.columns(4)
+        sc1.metric("ChromaDB Documents", dense.get("total_documents", 0))
+        sc2.metric("BM25 Corpus Size", sparse.get("corpus_size", 0))
+        sc3.metric("BM25 Initialized", "✅" if sparse.get("bm25_initialized") else "❌")
+        sc4.metric("Embedding Model", dense.get("embedding_model", "N/A"))
+
+        st.markdown(
+            f"**Fusion Config:** Dense weight={weights.get('dense', 0.6)} · "
+            f"Sparse weight={weights.get('sparse', 0.4)} · "
+            f"RRF k={weights.get('rrf_k', 60)} · "
+            f"Candidate multiplier={weights.get('candidate_multiplier', 3)}×"
+        )
+
+        # Collection metadata
+        if dense.get("collections"):
+            st.markdown("**Collections:**")
+            for coll_name, coll_info in dense["collections"].items():
+                st.markdown(f"- `{coll_name}`: {coll_info.get('count', 0)} documents")
+    else:
+        st.warning("Could not fetch index stats.")
+
+    st.divider()
+
+    # ── API Endpoints Reference ──────────────────────────────────
+    st.subheader("🔗 CS4 API Reference")
+    st.markdown(
+        "| Endpoint | Method | Description |\n"
+        "|----------|--------|-------------|\n"
+        "| `/api/v1/search` | GET | Hybrid search with metadata filters |\n"
+        "| `/api/v1/index` | POST | Index company evidence from CS2 |\n"
+        "| `/api/v1/index/stats` | GET | Indexing statistics |\n"
+        "| `/api/v1/llm/status` | GET | LLM provider health & budget |\n"
+        "| `/api/v1/justification/{company}/{dim}` | GET | Score justification |\n"
+        "| `/api/v1/ic-prep/{company}` | GET | IC meeting package |\n"
+        "| `/api/v1/analyst-notes/interview` | POST | Submit interview |\n"
+        "| `/api/v1/analyst-notes/dd-finding` | POST | Submit DD finding |\n"
+        "| `/api/v1/analyst-notes/data-room` | POST | Submit data room summary |\n"
+        "| `/api/v1/analyst-notes/meeting` | POST | Submit meeting notes |\n"
+        "| `/api/v1/analyst-notes/{company}` | GET | List notes for company |\n"
+        "| `/health` | GET | Service health check |\n"
+    )
+    st.caption(
+        f"CS4 API running at `{CS4_API_BASE}` · "
+        f"Swagger docs: `{CS4_API_BASE}/docs`"
+    )

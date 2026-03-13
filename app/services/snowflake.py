@@ -254,6 +254,37 @@ def get_company_by_ticker(db: Session, ticker: str) -> Optional[CompanyRow]:
     )
 
 
+def get_company_by_ticker_with_industry(db: Session, ticker: str) -> Optional[dict]:
+    """
+    Find a company by ticker with industry sector data joined.
+
+    CS4 Integration: Returns company metadata in the format CS4's
+    CS1 client expects, including sector from the industries table.
+    """
+    result = (
+        db.query(CompanyRow, IndustryRow)
+        .join(IndustryRow, CompanyRow.industry_id == IndustryRow.id)
+        .filter(CompanyRow.ticker == ticker, CompanyRow.is_deleted == False)
+        .first()
+    )
+    if not result:
+        return None
+
+    company, industry = result
+    return {
+        "company_id": company.id,
+        "ticker": company.ticker,
+        "name": company.name,
+        "sector": industry.sector,
+        "sub_sector": industry.name,
+        "market_cap_percentile": max(0.0, min(1.0, (float(company.position_factor) + 1) / 2)),
+        "position_factor": float(company.position_factor),
+        "industry_id": company.industry_id,
+        "created_at": str(company.created_at) if company.created_at else None,
+        "updated_at": str(company.updated_at) if company.updated_at else None,
+    }
+
+
 # ============================================================================
 # CS2: Document CRUD
 # ============================================================================

@@ -53,7 +53,10 @@ htmlcov/
 # Hypothesis
 .hypothesis/
 
-# Raw SEC filings (large, downloaded at runtime)
+# Raw SEC filings — exclude non-portfolio companies (keep NVDA, JPM, WMT, GE, DG)
+
+# CS4: ChromaDB persistence (regenerated at runtime)
+chroma_data/
 
 
 # Poetry config

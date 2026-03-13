@@ -65,6 +65,23 @@ def list_companies(
     return paginate(items, total, skip, limit)
 
 
+@router.get("/by-ticker/{ticker}")
+@cached(prefix=CACHE_PREFIX, ttl=300)
+def get_company_by_ticker(ticker: str, db: Session = Depends(get_db)):
+    """
+    Get a company by ticker symbol.
+
+    CS4 Integration: CS1 client needs ticker-based lookup for company metadata.
+    Returns company data with sector from industry join.
+    """
+    log.info("getting_company_by_ticker", ticker=ticker)
+    company = snowflake.get_company_by_ticker_with_industry(db, ticker.upper())
+    if not company:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=f"Company with ticker '{ticker}' not found")
+    return company
+
+
 @router.get("/{company_id}", response_model=CompanyResponse)
 @cached(prefix=CACHE_PREFIX, ttl=300)  # 5 minutes per PDF Table 3
 def get_company(company_id: UUID, db: Session = Depends(get_db)):

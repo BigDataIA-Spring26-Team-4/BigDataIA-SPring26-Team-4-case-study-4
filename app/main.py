@@ -12,7 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
 from app.logging import setup_logging
-from app.routers import health, companies, assessments, scores, industries, config
+from app.routers import health, companies, assessments, scores, industries, config, rubrics
 # CS2: Evidence Collection routers
 from app.routers import documents, signals, pipeline
 from app.routers.signals import evidence_router
@@ -153,6 +153,9 @@ app.include_router(industries.router)  # Industry reference data (cached)
 app.include_router(companies.router)
 app.include_router(assessments.router)
 app.include_router(scores.router)  # Individual dimension score updates
+
+# CS3→CS4: Rubric data for justification generation
+app.include_router(rubrics.router)
 
 # CS2: Evidence Collection routers
 app.include_router(documents.router)
