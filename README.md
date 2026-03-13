@@ -13,8 +13,8 @@
 
 | Resource | URL |
 |----------|-----|
-| **Codelabs Document** | https://codelabs-preview.appspot.com/?file_id=1XPoDQtI28SVqOQTJ0J3cJQRhWVE97O0d0MUoTDU1V5E |
-| **Video Presentation** | https://youtu.be/G0shIap0rwY |
+| **Codelabs Document** | https://codelabs-preview.appspot.com/?file_id=1ZYVD62sCK0jvl3ffeBwXGa9qtkbn3vXAYPjzNQhwtow#0 |
+| **Video Presentation** | https://youtu.be/2NXjSDy71eM |
 | **Live Application** | _[Add Streamlit URL if deployed]_ |
 
 ---
